@@ -1,4 +1,5 @@
 - Use BAWES SDK to generate code and interact with the backend ERP API.
+- Whenenever you do any code changes, validate to confirm there are no linting errors and keep fixing until you get it right. Wait for linting to complete, Verify there are no errors, Only then share the solution
 - When installing npm dependencies, make sure you aren't repeating installs that have already been done.
 - When using shadcn, using "npx shadcn-ui@latest" is outdated. Its now "@shadcn/ui".
 - Dont modify env files unless you have a good reason.
@@ -23,3 +24,50 @@
      - Yes to overwrite
 3. After installation, verify the component exists in src/components/ui
 4. Update imports to use exact path: @/components/ui/<component>
+
+# When making code changes
+1. Validate to confirm there are no linting errors
+2. Wait for linting to complete (minimum 5 seconds)
+3. Verify there are no errors
+4. Only then share the solution
+
+# When implementing new features
+1. First check if the feature exists in the BAWES SDK
+2. If a required method/feature doesn't exist:
+   - Document it in /docs/requirements.md
+   - Inform the user immediately
+   - Do not attempt random implementations
+3. Keep track of implementation status in /docs/status.md
+
+# Documentation Structure
+/docs
+  /requirements.md      # Missing features/methods needed
+  /status.md           # Implementation status and progress
+  /architecture.md     # System design decisions
+  /api.md             # API documentation
+  /components.md       # UI components documentation
+
+# When checking linting errors
+1. After any code change, wait for linting to complete (minimum 5 seconds)
+2. Look for the specific linting errors output which shows:
+   - File name
+   - Line number
+   - Exact error message
+3. Do not assume linting is complete without seeing this output
+4. Do not claim "no errors" without verifying the complete linting output
+5. If you see "Cannot find module" errors, check:
+   - File exists in the specified path
+   - Import path is correct
+   - File naming matches exactly (case-sensitive)
+
+# When making file structure changes
+1. Verify all imports are updated
+2. Check for duplicate files
+3. Ensure consistent naming conventions
+4. Wait for linting to complete before confirming changes
+
+# When installing npm dependencies
+1. Check if dependency is already installed
+2. Use exact versions when needed
+3. Document any peer dependency requirements
+4. Verify installation was successful before proceeding
