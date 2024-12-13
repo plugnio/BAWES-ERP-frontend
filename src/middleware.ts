@@ -1,26 +1,28 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Add paths that should be accessible without authentication
-const publicPaths = ['/login', '/register', '/api/auth'];
-
 export function middleware(request: NextRequest) {
-    const isPublicPath = publicPaths.some(path => 
-        request.nextUrl.pathname.startsWith(path)
-    );
-
-    const token = request.cookies.get('auth-token');
-
-    // Allow access to public paths
-    if (isPublicPath) {
+    // Skip middleware for public files
+    if (
+        request.nextUrl.pathname.startsWith('/_next') ||
+        request.nextUrl.pathname.startsWith('/public') ||
+        request.nextUrl.pathname === '/favicon.ico'
+    ) {
         return NextResponse.next();
     }
 
-    // Redirect to login if no token is present
-    if (!token) {
-        const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('from', request.nextUrl.pathname);
-        return NextResponse.redirect(loginUrl);
+    const token = request.cookies.get("accessToken")?.value;
+    const isAuthPage = 
+        request.nextUrl.pathname === "/login" || 
+        request.nextUrl.pathname === "/register" ||
+        request.nextUrl.pathname === "/verify-email";
+
+    if (isAuthPage && token) {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (!isAuthPage && !token) {
+        return NextResponse.redirect(new URL("/login", request.url));
     }
 
     return NextResponse.next();
@@ -28,13 +30,16 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public folder
-         */
+        // Protected API routes
+        '/api/:path*',
+        // Auth pages
+        '/login',
+        '/register',
+        '/verify-email',
+        // Protected pages
+        '/dashboard/:path*',
+        '/profile/:path*',
+        // Protect all routes except public files
         '/((?!_next/static|_next/image|favicon.ico|public/).*)',
     ],
 }; 
