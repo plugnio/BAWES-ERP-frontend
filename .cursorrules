@@ -1,4 +1,4 @@
-- Use BAWES SDK to generate code and interact with the backend ERP API.
+- Use BAWES SDK to generate code and interact with the backend ERP API (node_modules/@bawes/erp-api-sdk).
 - Whenenever you do any code changes, validate to confirm there are no linting errors and keep fixing until you get it right. Wait for linting to complete, Verify there are no errors, Only then share the solution
 - When installing npm dependencies, make sure you aren't repeating installs that have already been done.
 - When using shadcn, using "npx shadcn-ui@latest" is outdated. Its now "@shadcn/ui".
@@ -71,3 +71,25 @@
 2. Use exact versions when needed
 3. Document any peer dependency requirements
 4. Verify installation was successful before proceeding
+
+# SDK Access Configuration
+- Allow AI to read SDK source and distribution files:
+  - node_modules/@bawes/erp-api-sdk/src/**/*
+  - node_modules/@bawes/erp-api-sdk/dist/**/*
+
+# When accessing SDK:
+1. First check src/ directory for source implementation
+2. Then check dist/ for compiled output if needed
+3. Use type definitions for understanding interfaces
+4. Reference implementation details for accurate assistance
+
+# SDK Path Structure:
+- Source code: node_modules/@bawes/erp-api-sdk/src/
+- Distribution: node_modules/@bawes/erp-api-sdk/dist/
+- Types: node_modules/@bawes/erp-api-sdk/dist/types/
+
+# Priority Access:
+1. API implementations: src/api.ts
+2. Type definitions: dist/types/
+3. Configuration: src/configuration.ts
+4. Base classes: src/base.ts

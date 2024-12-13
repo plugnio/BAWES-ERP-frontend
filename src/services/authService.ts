@@ -25,7 +25,7 @@ export interface RegisterParams {
 export const authService = {
     async login(email: string, password: string) {
         try {
-            const response = await authApi.login(email, password);
+            const response = await authApi.authControllerLogin({ email, password });
             Cookies.set("accessToken", response.data.access_token, cookieOptions);
             Cookies.set("refreshToken", response.data.refresh_token, cookieOptions);
             return response.data;
@@ -36,7 +36,12 @@ export const authService = {
 
     async register({ email, password, nameEn, nameAr }: RegisterParams) {
         try {
-            const response = await authApi.register(email, password, nameEn, nameAr);
+            const response = await authApi.authControllerRegister({
+                email,
+                password,
+                nameEn,
+                nameAr
+            });
             return response.data;
         } catch (error) {
             throw error;
@@ -45,7 +50,7 @@ export const authService = {
 
     async verifyEmail(email: string, code: string) {
         try {
-            const response = await authApi.verifyEmail(email, code);
+            const response = await authApi.authControllerVerifyEmail({ email, code });
             return response.data;
         } catch (error) {
             throw error;
@@ -54,7 +59,7 @@ export const authService = {
 
     async refreshToken(refreshToken: string) {
         try {
-            const response = await authApi.refresh(refreshToken);
+            const response = await authApi.authControllerRefresh({ refreshToken });
             Cookies.set("accessToken", response.data.access_token, cookieOptions);
             Cookies.set("refreshToken", response.data.refresh_token, cookieOptions);
             return response.data;
@@ -67,7 +72,7 @@ export const authService = {
         try {
             const refreshToken = Cookies.get("refreshToken");
             if (refreshToken) {
-                await authApi.logout(refreshToken);
+                await authApi.authControllerLogout({ refreshToken });
             }
             Cookies.remove("accessToken");
             Cookies.remove("refreshToken");

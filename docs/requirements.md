@@ -5,3 +5,11 @@
   - Purpose: Allow users to sign out and revoke refresh tokens
   - Parameters: refreshToken (string)
   - Expected behavior: Invalidate the refresh token on the server
+
+## AI Assistant SDK Access Configuration
+- [ ] Enable direct access to SDK source and distribution files:
+  - node_modules/@bawes/erp-api-sdk/src/**/*
+  - node_modules/@bawes/erp-api-sdk/dist/**/*
+  - Purpose: Allow AI assistant to efficiently read and understand SDK implementation
+  - Benefits: Faster development and more accurate assistance
+  - Required for: Type checking, method signatures, and implementation details
