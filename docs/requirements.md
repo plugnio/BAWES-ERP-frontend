@@ -2,9 +2,11 @@
 
 ## Authentication API
 - [ ] Add logout/signout method to BAWES SDK AuthenticationApi
+  - Status: Endpoint not available (404)
   - Purpose: Allow users to sign out and revoke refresh tokens
-  - Parameters: refreshToken (string)
+  - Parameters: refresh_token (string)
   - Expected behavior: Invalidate the refresh token on the server
+  - Current workaround: Client-side cookie removal only
 
 ## AI Assistant SDK Access Configuration
 - [ ] Enable direct access to SDK source and distribution files:

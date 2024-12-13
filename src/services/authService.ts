@@ -8,11 +8,10 @@ const config = new Configuration({
 
 const authApi = new AuthenticationApi(config);
 
-// Cookie options for better security
 const cookieOptions = {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict" as const,
-    expires: 7, // 7 days
+    expires: 7 // 7 days
 };
 
 export interface RegisterParams {
@@ -26,25 +25,22 @@ export const authService = {
     async login(email: string, password: string) {
         try {
             const response = await authApi.authControllerLogin({ email, password });
-            Cookies.set("accessToken", response.data.access_token, cookieOptions);
-            Cookies.set("refreshToken", response.data.refresh_token, cookieOptions);
+            Cookies.set("accessToken", response.data.accessToken, cookieOptions);
+            Cookies.set("refreshToken", response.data.refreshToken, cookieOptions);
             return response.data;
-        } catch (error) {
-            throw error;
+        } catch (error: any) {
+            const message = error.response?.data?.message || 'Login failed';
+            throw new Error(message);
         }
     },
 
-    async register({ email, password, nameEn, nameAr }: RegisterParams) {
+    async register(params: RegisterParams) {
         try {
-            const response = await authApi.authControllerRegister({
-                email,
-                password,
-                nameEn,
-                nameAr
-            });
+            const response = await authApi.authControllerRegister(params);
             return response.data;
-        } catch (error) {
-            throw error;
+        } catch (error: any) {
+            const message = error.response?.data?.message || 'Registration failed';
+            throw new Error(message);
         }
     },
 
@@ -52,19 +48,21 @@ export const authService = {
         try {
             const response = await authApi.authControllerVerifyEmail({ email, code });
             return response.data;
-        } catch (error) {
-            throw error;
+        } catch (error: any) {
+            const message = error.response?.data?.message || 'Email verification failed';
+            throw new Error(message);
         }
     },
 
     async refreshToken(refreshToken: string) {
         try {
-            const response = await authApi.authControllerRefresh({ refreshToken });
-            Cookies.set("accessToken", response.data.access_token, cookieOptions);
-            Cookies.set("refreshToken", response.data.refresh_token, cookieOptions);
+            const response = await authApi.authControllerRefresh({ refresh_token: refreshToken });
+            Cookies.set("accessToken", response.data.accessToken, cookieOptions);
+            Cookies.set("refreshToken", response.data.refreshToken, cookieOptions);
             return response.data;
-        } catch (error) {
-            throw error;
+        } catch (error: any) {
+            const message = error.response?.data?.message || 'Token refresh failed';
+            throw new Error(message);
         }
     },
 
@@ -72,12 +70,15 @@ export const authService = {
         try {
             const refreshToken = Cookies.get("refreshToken");
             if (refreshToken) {
-                await authApi.authControllerLogout({ refreshToken });
+                await authApi.authControllerLogout({ refresh_token: refreshToken });
             }
             Cookies.remove("accessToken");
             Cookies.remove("refreshToken");
-        } catch (error) {
-            throw error;
+        } catch (error: any) {
+            Cookies.remove("accessToken");
+            Cookies.remove("refreshToken");
+            const message = error.response?.data?.message || 'Logout failed';
+            throw new Error(message);
         }
     }
 }; 

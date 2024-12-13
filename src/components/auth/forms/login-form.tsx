@@ -39,7 +39,7 @@ export function LoginForm() {
             router.push("/dashboard");
             router.refresh();
         } catch (err: any) {
-            setError(err.response?.data?.message || "Login failed");
+            setError(err.message || "Login failed");
         }
     };
 
