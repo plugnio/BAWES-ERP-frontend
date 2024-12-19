@@ -73,23 +73,20 @@
 4. Verify installation was successful before proceeding
 
 # SDK Access Configuration
-- Allow AI to read SDK source and distribution files:
-  - node_modules/@bawes/erp-api-sdk/src/**/*
-  - node_modules/@bawes/erp-api-sdk/dist/**/*
+<allowed_files>
+# Full SDK access
+node_modules/@bawes/erp-api-sdk/src/**
+node_modules/@bawes/erp-api-sdk/dist/**
+</allowed_files>
 
-# When accessing SDK:
-1. First check src/ directory for source implementation
-2. Then check dist/ for compiled output if needed
-3. Use type definitions for understanding interfaces
-4. Reference implementation details for accurate assistance
-
-# SDK Path Structure:
-- Source code: node_modules/@bawes/erp-api-sdk/src/
-- Distribution: node_modules/@bawes/erp-api-sdk/dist/
-- Types: node_modules/@bawes/erp-api-sdk/dist/types/
-
-# Priority Access:
+## Priority Access Order:
 1. API implementations: src/api.ts
 2. Type definitions: dist/types/
 3. Configuration: src/configuration.ts
 4. Base classes: src/base.ts
+
+## When accessing SDK:
+1. First check src/ directory for source implementation
+2. Then check dist/ for compiled output if needed
+3. Use type definitions for understanding interfaces
+4. Reference implementation details for accurate

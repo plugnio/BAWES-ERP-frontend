@@ -1,12 +1,7 @@
-import { Configuration, AuthenticationApi } from '@bawes/erp-api-sdk';
+import { AuthenticationApi } from '@bawes/erp-api-sdk';
+import { sdkConfig } from '@/lib/sdk-config';
 import Cookies from 'js-cookie';
-
-const config = new Configuration({
-    basePath: process.env.NEXT_PUBLIC_ERP_API_URL,
-    apiKey: process.env.NEXT_PUBLIC_ERP_API_KEY
-});
-
-const authApi = new AuthenticationApi(config);
+import axios from 'axios';
 
 const cookieOptions = {
     secure: process.env.NODE_ENV === "production",
@@ -21,16 +16,37 @@ export interface RegisterParams {
     nameAr: string;
 }
 
+// Create auth API instance with the configured middleware
+const authApi = new AuthenticationApi(sdkConfig);
+
 export const authService = {
     async login(email: string, password: string) {
         try {
             const response = await authApi.authControllerLogin({ email, password });
-            Cookies.set("accessToken", response.data.accessToken, cookieOptions);
-            Cookies.set("refreshToken", response.data.refreshToken, cookieOptions);
+            
+            const { access_token, refresh_token } = response.data as any;
+            
+            // Store tokens in cookies
+            Cookies.set("accessToken", access_token, cookieOptions);
+            Cookies.set("refreshToken", refresh_token, cookieOptions);
+            
             return response.data;
         } catch (error: any) {
-            const message = error.response?.data?.message || 'Login failed';
-            throw new Error(message);
+            // Handle different types of errors silently without console errors
+            if (error.response) {
+                if (error.response.status === 401) {
+                    throw new Error('Invalid credentials');
+                }
+                
+                const message = error.response.data?.message || 
+                              error.response.data?.error || 
+                              'Login failed. Please try again.';
+                throw new Error(message);
+            } else if (error.request) {
+                throw new Error('No response from server. Please try again.');
+            } else {
+                throw new Error('Login failed. Please try again.');
+            }
         }
     },
 
@@ -39,8 +55,14 @@ export const authService = {
             const response = await authApi.authControllerRegister(params);
             return response.data;
         } catch (error: any) {
-            const message = error.response?.data?.message || 'Registration failed';
-            throw new Error(message);
+            console.error('Registration failed:', error);
+            if (error.response) {
+                const message = error.response.data?.message || 
+                              error.response.data?.error || 
+                              'Registration failed';
+                throw new Error(message);
+            }
+            throw new Error('Registration failed');
         }
     },
 
@@ -49,36 +71,72 @@ export const authService = {
             const response = await authApi.authControllerVerifyEmail({ email, code });
             return response.data;
         } catch (error: any) {
-            const message = error.response?.data?.message || 'Email verification failed';
-            throw new Error(message);
+            console.error('Email verification failed:', error);
+            if (error.response) {
+                const message = error.response.data?.message || 
+                              error.response.data?.error || 
+                              'Email verification failed';
+                throw new Error(message);
+            }
+            throw new Error('Email verification failed');
         }
     },
 
     async refreshToken(refreshToken: string) {
         try {
+            console.log('Attempting to refresh token');
             const response = await authApi.authControllerRefresh({ refresh_token: refreshToken });
-            Cookies.set("accessToken", response.data.accessToken, cookieOptions);
-            Cookies.set("refreshToken", response.data.refreshToken, cookieOptions);
+            console.log('Token refresh successful');
+            
+            const { access_token, refresh_token } = response.data as any;
+            
+            // Update tokens in cookies
+            Cookies.set("accessToken", access_token, cookieOptions);
+            Cookies.set("refreshToken", refresh_token, cookieOptions);
+            
             return response.data;
         } catch (error: any) {
-            const message = error.response?.data?.message || 'Token refresh failed';
-            throw new Error(message);
+            console.error('Token refresh failed:', error);
+            Cookies.remove("accessToken");
+            Cookies.remove("refreshToken");
+            if (error.response) {
+                const message = error.response.data?.message || 
+                              error.response.data?.error || 
+                              'Token refresh failed';
+                throw new Error(message);
+            }
+            throw new Error('Token refresh failed');
         }
     },
 
     async logout() {
+        console.log('Attempting logout');
+        const refreshToken = Cookies.get("refreshToken");
+        const accessToken = Cookies.get("accessToken");
+        
         try {
-            const refreshToken = Cookies.get("refreshToken");
-            if (refreshToken) {
-                await authApi.authControllerLogout({ refresh_token: refreshToken });
+            if (refreshToken && accessToken) {
+                // Make a direct axios call to the logout endpoint
+                await axios.post(
+                    `${process.env.NEXT_PUBLIC_ERP_API_URL}/auth/logout`,
+                    { refresh_token: refreshToken },
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json',
+                        }
+                    }
+                );
+                console.log('Logout API call successful');
             }
-            Cookies.remove("accessToken");
-            Cookies.remove("refreshToken");
         } catch (error: any) {
+            // Log the error but don't throw it
+            console.error('Logout API call failed:', error);
+        } finally {
+            // Always clear local tokens
+            console.log('Clearing tokens');
             Cookies.remove("accessToken");
             Cookies.remove("refreshToken");
-            const message = error.response?.data?.message || 'Logout failed';
-            throw new Error(message);
         }
     }
 }; 

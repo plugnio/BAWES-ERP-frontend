@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,38 +17,54 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 import { authService } from "@/services/authService";
 import { AuthCard } from "../shared/auth-card";
 
+const formSchema = z.object({
+    email: z.string().email({
+        message: "Please enter a valid email.",
+    }),
+    password: z.string().min(6, {
+        message: "Password must be at least 6 characters.",
+    }),
+});
+
 export function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [error, setError] = useState<string>("");
+    const [isLoading, setIsLoading] = useState(false);
     
-    const form = useForm<LoginInput>({
-        resolver: zodResolver(loginSchema),
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
         defaultValues: {
             email: "",
             password: "",
         },
     });
 
-    const onSubmit = async (data: LoginInput) => {
+    async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
+            setIsLoading(true);
             setError("");
-            await authService.login(data.email, data.password);
-            router.push("/dashboard");
+            await authService.login(values.email, values.password);
+            
+            // Get the redirect URL from the query params or default to dashboard
+            const from = searchParams.get('from') || '/dashboard';
+            router.push(from);
             router.refresh();
         } catch (err: any) {
-            setError(err.message || "Login failed");
+            setError(err.message || "Login failed. Please try again.");
+        } finally {
+            setIsLoading(false);
         }
-    };
+    }
 
     return (
         <AuthCard 
             title="Login"
             footer={
-                <Button variant="link" onClick={() => router.push("/register")}>
+                <Button variant="link" onClick={() => router.push("/auth/register")}>
                     Don't have an account? Register
                 </Button>
             }
@@ -65,6 +82,7 @@ export function LoginForm() {
                                         placeholder="email@example.com" 
                                         type="email"
                                         autoComplete="email"
+                                        disabled={isLoading}
                                         {...field} 
                                     />
                                 </FormControl>
@@ -82,6 +100,7 @@ export function LoginForm() {
                                     <Input 
                                         type="password" 
                                         autoComplete="current-password"
+                                        disabled={isLoading}
                                         {...field} 
                                     />
                                 </FormControl>
@@ -94,8 +113,8 @@ export function LoginForm() {
                             <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
-                    <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                        {form.formState.isSubmitting ? "Logging in..." : "Login"}
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading ? "Signing in..." : "Sign In"}
                     </Button>
                 </form>
             </Form>

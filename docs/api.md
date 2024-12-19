@@ -1,60 +1,213 @@
 # API Documentation
 
-## Authentication API
+## SDK Overview
 
-### Login
-- Method: `login(email: string, password: string)`
-- Returns: `{ access_token: string, refresh_token: string }`
-- Storage: HTTP-only cookies
-- Security: 
-  - Secure flag in production
-  - Same-site policy
-  - HTTP-only to prevent XSS
+The BAWES ERP API SDK provides TypeScript/JavaScript bindings for interacting with the backend API. The SDK is auto-generated from OpenAPI/Swagger specifications.
 
-### Register
-- Method: `register(email: string, password: string, nameEn: string, nameAr: string)`
-- Returns: Success message
-- Flow:
-  - Creates user account
-  - Sends verification email
-  - Redirects to verification page
+## Available APIs
 
-### Verify Email
-- Method: `verifyEmail(email: string, code: string)`
-- Returns: Success message
-- Flow:
-  - Validates verification code
-  - Marks email as verified
-  - Redirects to login with success message
+### Authentication API
 
-### Token Refresh Process
-- Method: `refresh(refreshToken: string)`
-- Returns: `{ access_token: string, refresh_token: string }`
-- Automatic refresh flow:
-  1. Detects expired access token
-  2. Uses refresh token from HTTP-only cookie
-  3. Gets new token pair from API
-  4. Updates both tokens in cookies
-  5. Retries original request
+```typescript
+import { AuthenticationApi } from '@bawes/erp-api-sdk';
 
-### Logout (Current Implementation)
-- Client-side:
-  - Clears auth cookies
-  - Redirects to login page
-- Server-side (Pending):
-  - Token revocation endpoint needed in SDK
-  - Will invalidate refresh tokens
+// Available methods
+authControllerLogin(loginDto: LoginDto): Promise<LoginResponse>
+authControllerLogout(): Promise<void>
+authControllerGetProfile(): Promise<ProfileResponse>
+```
 
-## Error Handling
-All API calls are wrapped in try-catch blocks with:
-- Error messages from API response
-- Fallback error messages if API response is missing
-- Proper error state management in forms
-- Automatic error recovery where possible
+#### Login
+- Method: `authControllerLogin`
+- Purpose: Authenticate user and get access token
+- Parameters:
+  ```typescript
+  interface LoginDto {
+    email: string;
+    password: string;
+  }
+  ```
+- Response:
+  ```typescript
+  interface LoginResponse {
+    access_token: string;
+  }
+  ```
 
-## Security Measures
-- CSRF protection via same-site cookies
-- XSS prevention with HTTP-only cookies
-- Automatic token refresh
-- Protected route middleware
-- Rate limiting on auth endpoints
+#### Logout
+- Method: `authControllerLogout`
+- Purpose: Invalidate current session
+- Parameters: None
+- Response: Void
+
+#### Get Profile
+- Method: `authControllerGetProfile`
+- Purpose: Get current user profile
+- Parameters: None
+- Response:
+  ```typescript
+  interface ProfileResponse {
+    id: string;
+    nameEn: string;
+    nameAr: string;
+    accountStatus: string;
+  }
+  ```
+
+### People API
+
+```typescript
+import { PeopleApi } from '@bawes/erp-api-sdk';
+
+// Available methods
+personControllerCreate(createPersonDto: CreatePersonDto): Promise<Person>
+personControllerFindAll(): Promise<Person[]>
+personControllerFindOne(id: string): Promise<Person>
+personControllerUpdate(id: string, updatePersonDto: UpdatePersonDto): Promise<Person>
+personControllerRemove(id: string): Promise<void>
+```
+
+#### Create Person
+- Method: `personControllerCreate`
+- Purpose: Create new user
+- Parameters:
+  ```typescript
+  interface CreatePersonDto {
+    nameEn?: string;
+    nameAr?: string;
+    passwordHash: string;
+    accountStatus: string;
+  }
+  ```
+
+#### List People
+- Method: `personControllerFindAll`
+- Purpose: Get all users
+- Parameters: None
+- Response: Array of Person objects
+
+#### Get Person
+- Method: `personControllerFindOne`
+- Purpose: Get user by ID
+- Parameters: id (string)
+- Response: Person object
+
+#### Update Person
+- Method: `personControllerUpdate`
+- Purpose: Update user details
+- Parameters:
+  - id: string
+  - updatePersonDto: UpdatePersonDto
+
+#### Delete Person
+- Method: `personControllerRemove`
+- Purpose: Soft delete user
+- Parameters: id (string)
+- Response: Void
+
+### Permission Management API
+
+```typescript
+import { PermissionManagementApi } from '@bawes/erp-api-sdk';
+
+// Available methods
+permissionManagementControllerCreateRole(createRoleDto: CreateRoleDto): Promise<Role>
+permissionManagementControllerGetRole(id: string): Promise<Role>
+permissionManagementControllerGetPermissionDashboard(): Promise<PermissionDashboard>
+```
+
+#### Create Role
+- Method: `permissionManagementControllerCreateRole`
+- Purpose: Create new role
+- Parameters:
+  ```typescript
+  interface CreateRoleDto {
+    name: string;
+    description?: string;
+    color?: string;
+    permissions?: string[];
+  }
+  ```
+
+#### Get Role
+- Method: `permissionManagementControllerGetRole`
+- Purpose: Get role details
+- Parameters: id (string)
+- Response: Role object
+
+#### Get Permission Dashboard
+- Method: `permissionManagementControllerGetPermissionDashboard`
+- Purpose: Get roles and permissions overview
+- Parameters: None
+- Response:
+  ```typescript
+  interface PermissionDashboard {
+    roles: Role[];
+    permissionCategories: PermissionCategory[];
+  }
+  ```
+
+## Using the SDK
+
+### Configuration
+
+```typescript
+import { Configuration } from '@bawes/erp-api-sdk';
+
+const config = new Configuration({
+  basePath: process.env.NEXT_PUBLIC_API_URL,
+  accessToken: getAccessToken() || undefined,
+});
+```
+
+### Error Handling
+
+The SDK uses Axios for HTTP requests. Errors are thrown as AxiosError instances:
+
+```typescript
+try {
+  await api.someMethod();
+} catch (error) {
+  if (error?.response?.status === 401) {
+    // Handle unauthorized
+  } else if (error?.response?.status === 404) {
+    // Handle not found
+  } else {
+    // Handle other errors
+  }
+}
+```
+
+### Token Refresh
+
+Use the `withTokenRefresh` higher-order function for automatic token refresh:
+
+```typescript
+import { withTokenRefresh } from '@/lib/api';
+
+const result = await withTokenRefresh(() => 
+  api.someMethod()
+);
+```
+
+## Best Practices
+
+1. **Configuration Management**
+   - Use environment variables for API URL
+   - Handle token management centrally
+   - Implement proper error handling
+
+2. **Type Safety**
+   - Use TypeScript interfaces provided by SDK
+   - Validate API responses
+   - Handle null/undefined cases
+
+3. **Error Handling**
+   - Implement proper error boundaries
+   - Use toast notifications for user feedback
+   - Log errors appropriately
+
+4. **Performance**
+   - Cache responses when appropriate
+   - Implement request debouncing
+   - Use proper loading states

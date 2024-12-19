@@ -2,44 +2,26 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-    // Skip middleware for public files
-    if (
-        request.nextUrl.pathname.startsWith('/_next') ||
-        request.nextUrl.pathname.startsWith('/public') ||
-        request.nextUrl.pathname === '/favicon.ico'
-    ) {
-        return NextResponse.next();
-    }
+  const token = request.cookies.get('accessToken');
+  const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
+  const isDashboardPage = request.nextUrl.pathname.startsWith('/dashboard');
+  const isRootPage = request.nextUrl.pathname === '/';
 
-    const token = request.cookies.get("accessToken")?.value;
-    const isAuthPage = 
-        request.nextUrl.pathname === "/login" || 
-        request.nextUrl.pathname === "/register" ||
-        request.nextUrl.pathname === "/verify-email";
+  // Redirect to login if accessing protected routes without token
+  if ((isDashboardPage || isRootPage) && !token) {
+    const loginUrl = new URL('/auth/login', request.url);
+    loginUrl.searchParams.set('from', request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
-    if (isAuthPage && token) {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
+  // Redirect to dashboard if accessing auth pages with token
+  if (isAuthPage && token) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
 
-    if (!isAuthPage && !token) {
-        return NextResponse.redirect(new URL("/login", request.url));
-    }
-
-    return NextResponse.next();
+  return NextResponse.next();
 }
 
 export const config = {
-    matcher: [
-        // Protected API routes
-        '/api/:path*',
-        // Auth pages
-        '/login',
-        '/register',
-        '/verify-email',
-        // Protected pages
-        '/dashboard/:path*',
-        '/profile/:path*',
-        // Protect all routes except public files
-        '/((?!_next/static|_next/image|favicon.ico|public/).*)',
-    ],
+  matcher: ['/', '/dashboard/:path*', '/auth/:path*'],
 }; 
