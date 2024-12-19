@@ -78,17 +78,54 @@ The system implements a secure authentication and authorization system using JWT
 
 ## SDK Integration
 
-The frontend integrates with the BAWES ERP API using the auto-generated SDK:
+### Overview
+The frontend integrates with the BAWES ERP API using a centralized SDK configuration in `src/lib/sdk-config.ts`. This provides:
 
-1. **Configuration**
-   - Base URL from environment variables
-   - Automatic token injection
-   - Error handling
+1. **Token Management**
+   - Automatic token handling
+   - Built-in token refresh
+   - Authorization header management
 
-2. **API Clients**
-   - `AuthenticationApi` for auth operations
-   - `PeopleApi` for user management
-   - `PermissionManagementApi` for roles and permissions
+2. **Error Handling**
+   - 401 error handling
+   - Token expiry management
+   - Automatic retries
+
+3. **Configuration**
+   - Centralized SDK setup
+   - Environment-based configuration
+   - Type-safe API access
+
+### SDK Configuration
+```typescript
+// src/lib/sdk-config.ts
+export const sdkConfig = new Configuration({
+    basePath: process.env.NEXT_PUBLIC_ERP_API_URL,
+    baseOptions: {
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    },
+    accessToken: () => {
+        const token = Cookies.get('accessToken');
+        if (!token) throw new Error('No access token available');
+        return token; // SDK adds 'Bearer ' prefix automatically
+    }
+});
+```
+
+### Usage
+```typescript
+// Correct usage
+import { sdkConfig } from '@/lib/sdk-config';
+const api = new SomeApi(sdkConfig);
+
+// API calls will automatically:
+// 1. Include the current token
+// 2. Handle token refresh
+// 3. Retry failed requests
+// 4. Handle 401 errors
+```
 
 ## Best Practices
 
