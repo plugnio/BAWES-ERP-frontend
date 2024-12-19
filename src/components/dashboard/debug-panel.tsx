@@ -7,11 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Cookies from 'js-cookie';
 
+// Remove the strict interface to allow any token fields
 interface DecodedToken {
-  exp: number;
-  iat: number;
-  sub: string;
-  permissions?: string[];
+  [key: string]: any;
 }
 
 export function DebugPanel() {
@@ -114,10 +112,21 @@ export function DebugPanel() {
           <div>
             <h4 className="font-medium">Token Details</h4>
             <div className="text-sm mt-2 space-y-1">
-              <p>Subject: {decodedToken.sub}</p>
-              <p>Issued: {new Date(decodedToken.iat * 1000).toLocaleString()}</p>
-              <p>Expires: {new Date(decodedToken.exp * 1000).toLocaleString()}</p>
+              {Object.entries(decodedToken).map(([key, value]) => (
+                <div key={key} className="flex flex-col">
+                  <p className="font-medium">{key}:</p>
+                  <pre className="text-xs bg-gray-50 p-1 rounded">
+                    {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                  </pre>
+                </div>
+              ))}
             </div>
+          </div>
+          <div>
+            <h4 className="font-medium">Raw Token</h4>
+            <pre className="text-xs bg-gray-50 p-2 rounded mt-1 break-all whitespace-pre-wrap">
+              {token}
+            </pre>
           </div>
         </Card>
       </CollapsibleContent>
