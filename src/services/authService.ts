@@ -55,7 +55,6 @@ export const authService = {
             const response = await authApi.authControllerRegister(params);
             return response.data;
         } catch (error: any) {
-            console.error('Registration failed:', error);
             if (error.response) {
                 const message = error.response.data?.message || 
                               error.response.data?.error || 
@@ -71,7 +70,6 @@ export const authService = {
             const response = await authApi.authControllerVerifyEmail({ email, code });
             return response.data;
         } catch (error: any) {
-            console.error('Email verification failed:', error);
             if (error.response) {
                 const message = error.response.data?.message || 
                               error.response.data?.error || 
@@ -84,9 +82,7 @@ export const authService = {
 
     async refreshToken(refreshToken: string) {
         try {
-            console.log('Attempting to refresh token');
             const response = await authApi.authControllerRefresh({ refresh_token: refreshToken });
-            console.log('Token refresh successful');
             
             const { access_token, refresh_token } = response.data as any;
             
@@ -96,7 +92,6 @@ export const authService = {
             
             return response.data;
         } catch (error: any) {
-            console.error('Token refresh failed:', error);
             Cookies.remove("accessToken");
             Cookies.remove("refreshToken");
             if (error.response) {
@@ -110,31 +105,19 @@ export const authService = {
     },
 
     async logout() {
-        console.log('Attempting logout');
-        const refreshToken = Cookies.get("refreshToken");
-        const accessToken = Cookies.get("accessToken");
-        
         try {
-            if (refreshToken && accessToken) {
-                // Make a direct axios call to the logout endpoint
-                await axios.post(
-                    `${process.env.NEXT_PUBLIC_ERP_API_URL}/auth/logout`,
-                    { refresh_token: refreshToken },
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Content-Type': 'application/json',
-                        }
-                    }
-                );
-                console.log('Logout API call successful');
+            const refreshToken = Cookies.get("refreshToken");
+            
+            if (refreshToken) {
+                try {
+                    // Use the SDK's logout endpoint directly
+                    await authApi.authControllerLogout({ refresh_token: refreshToken });
+                } catch (error) {
+                    // Ignore errors during logout API call
+                }
             }
-        } catch (error: any) {
-            // Log the error but don't throw it
-            console.error('Logout API call failed:', error);
         } finally {
             // Always clear local tokens
-            console.log('Clearing tokens');
             Cookies.remove("accessToken");
             Cookies.remove("refreshToken");
         }

@@ -3,6 +3,7 @@ import Cookies from 'js-cookie';
 
 // Track refresh state
 let isRefreshing = false;
+let refreshPromise: Promise<void> | null = null;
 
 // Create SDK configuration with token refresh middleware
 export const sdkConfig = new Configuration({
@@ -15,45 +16,82 @@ export const sdkConfig = new Configuration({
             async pre(context) {
                 // Get token from cookies
                 const token = Cookies.get('accessToken');
+                
+                // Function to handle token refresh
+                const handleRefresh = async () => {
+                    const refreshToken = Cookies.get('refreshToken');
+                    if (!refreshToken) {
+                        throw new Error('No refresh token available');
+                    }
+
+                    const { authService } = await import('@/services/authService');
+                    await authService.refreshToken(refreshToken);
+                    
+                    const newToken = Cookies.get('accessToken');
+                    if (!newToken) {
+                        throw new Error('No new token after refresh');
+                    }
+                    
+                    return newToken;
+                };
+
                 if (token) {
-                    // Always set the Authorization header if we have a token
-                    context.init.headers = {
-                        ...context.init.headers,
-                        Authorization: `Bearer ${token}`,
-                    };
+                    try {
+                        // Check if token is expired
+                        const [, payload] = token.split('.');
+                        const decodedPayload = JSON.parse(atob(payload));
+                        const isExpired = decodedPayload.exp * 1000 < Date.now();
 
-                    // Only attempt token refresh for non-auth endpoints
-                    if (!context.url.includes('/auth/')) {
-                        try {
-                            const [, payload] = token.split('.');
-                            const decodedPayload = JSON.parse(atob(payload));
-                            const isExpired = decodedPayload.exp * 1000 < Date.now();
-
-                            if (isExpired && !isRefreshing) {
+                        // If token is expired and not refreshing, start refresh
+                        if (isExpired) {
+                            if (!isRefreshing) {
                                 isRefreshing = true;
-                                try {
-                                    const refreshToken = Cookies.get('refreshToken');
-                                    if (refreshToken) {
-                                        const { authService } = await import('@/services/authService');
-                                        await authService.refreshToken(refreshToken);
-                                        
-                                        // Get the new token after refresh
-                                        const newToken = Cookies.get('accessToken');
-                                        if (newToken) {
-                                            context.init.headers.Authorization = `Bearer ${newToken}`;
-                                        }
-                                    }
-                                } finally {
-                                    isRefreshing = false;
-                                }
+                                refreshPromise = handleRefresh()
+                                    .catch((error) => {
+                                        console.error('Token refresh failed:', error);
+                                        Cookies.remove('accessToken');
+                                        Cookies.remove('refreshToken');
+                                        window.location.href = '/auth/login';
+                                        throw error;
+                                    })
+                                    .finally(() => {
+                                        isRefreshing = false;
+                                        refreshPromise = null;
+                                    });
                             }
-                        } catch (error) {
-                            console.error('Token refresh failed:', error);
-                            Cookies.remove('accessToken');
-                            Cookies.remove('refreshToken');
+
+                            // Wait for ongoing refresh to complete
+                            if (refreshPromise) {
+                                await refreshPromise;
+                            }
+
+                            // Get the new token after refresh
+                            const newToken = Cookies.get('accessToken');
+                            if (!newToken) {
+                                throw new Error('No token after refresh');
+                            }
+
+                            // Set the new token in headers
+                            context.init.headers = {
+                                ...context.init.headers,
+                                Authorization: `Bearer ${newToken}`,
+                            };
+                        } else {
+                            // Token is valid, use it
+                            context.init.headers = {
+                                ...context.init.headers,
+                                Authorization: `Bearer ${token}`,
+                            };
                         }
+                    } catch (error) {
+                        console.error('Token handling failed:', error);
+                        Cookies.remove('accessToken');
+                        Cookies.remove('refreshToken');
+                        window.location.href = '/auth/login';
+                        throw error;
                     }
                 }
+
                 return context;
             }
         }
