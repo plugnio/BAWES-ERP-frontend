@@ -160,3 +160,53 @@
    - Need deployment guides
    - Need configuration guides
    - Need maintenance procedures
+
+# Development Requirements
+
+## SDK Usage Requirements
+
+### Token Handling
+- Always use the shared SDK configuration from `src/lib/sdk-config.ts`
+- Never create new SDK configurations in components
+- Always handle token expiry and refresh
+- Use the debug panel to verify token state
+
+### Error Handling
+- Always provide loading states
+- Always handle error states
+- Always provide empty states
+- Always handle 401 errors by redirecting to login
+- Use proper type definitions and null checks
+
+### Component Requirements
+- Initialize state with proper default values
+- Clean up effects with isMounted flag
+- Handle all possible states (loading, error, empty, success)
+- Use proper TypeScript types
+- Add proper null checks for API data
+
+## Implementation Status
+
+### SDK Integration
+- [x] Shared SDK configuration
+- [x] Token handling
+- [x] Error handling
+- [x] Loading states
+- [x] Empty states
+- [x] Type definitions
+- [x] Null checks
+
+### Authentication
+- [x] Token handling
+- [x] Token refresh
+- [x] Error handling
+- [x] Debug panel
+- [x] Redirect handling
+
+### Components
+- [x] Loading states
+- [x] Error states
+- [x] Empty states
+- [x] Type definitions
+- [x] Null checks
+- [x] Effect cleanup
