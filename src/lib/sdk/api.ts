@@ -2,6 +2,8 @@ import {
   Configuration,
   AuthenticationApi,
   PeopleApi,
+  PermissionManagementApi,
+  RoleManagementApi,
 } from '@bawes/erp-api-sdk';
 import { SDK_CONFIG, createConfiguration } from './config';
 
@@ -19,6 +21,8 @@ class ApiClient {
   // API instances
   readonly auth: AuthenticationApi;
   readonly people: PeopleApi;
+  readonly permissions: PermissionManagementApi;
+  readonly roles: RoleManagementApi;
 
   private constructor() {
     this.configuration = createConfiguration();
@@ -26,6 +30,8 @@ class ApiClient {
     // Initialize API instances
     this.auth = new AuthenticationApi(this.configuration);
     this.people = new PeopleApi(this.configuration);
+    this.permissions = new PermissionManagementApi(this.configuration);
+    this.roles = new RoleManagementApi(this.configuration);
   }
 
   static getInstance(): ApiClient {

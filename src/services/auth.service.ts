@@ -1,5 +1,4 @@
 import { BaseService } from './base.service';
-import { getApiClient } from '@/lib/sdk/api-client';
 import type { LoginDto, RegisterDto, VerifyEmailDto } from '@bawes/erp-api-sdk';
 import type { AxiosResponse } from 'axios';
 
@@ -20,7 +19,6 @@ interface ProfileResponse {
 }
 
 export class AuthService extends BaseService {
-  private client = getApiClient();
   private refreshTokenTimeout?: NodeJS.Timeout;
   private currentUser: ProfileResponse | null = null;
 
