@@ -101,7 +101,7 @@ export function DebugPanel() {
             <div>
               <h4 className="font-medium">Permissions</h4>
               <div className="flex flex-wrap gap-2 mt-2">
-                {decodedToken.permissions.map((permission) => (
+                {decodedToken.permissions.map((permission: string) => (
                   <Badge key={permission} variant="outline">
                     {permission}
                   </Badge>
@@ -123,9 +123,9 @@ export function DebugPanel() {
             </div>
           </div>
           <div>
-            <h4 className="font-medium">Raw Token</h4>
+            <h4 className="font-medium">Bearer Token</h4>
             <pre className="text-xs bg-gray-50 p-2 rounded mt-1 break-all whitespace-pre-wrap">
-              {token}
+              Bearer {token}
             </pre>
           </div>
         </Card>

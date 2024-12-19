@@ -1,24 +1,51 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { ensureValidToken } from '@/lib/sdk-config';
+import { MainNav } from "@/components/main-nav";
+import { UserNav } from "@/components/user-nav";
 import { Sidebar } from "@/components/dashboard/sidebar";
-import { Header } from "@/components/dashboard/header";
 import { DebugPanel } from "@/components/dashboard/debug-panel";
 
 export default function DashboardLayout({
-  children,
+    children,
 }: {
-  children: React.ReactNode;
+    children: React.ReactNode;
 }) {
-  return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
-          <div className="container mx-auto px-6 py-8">
-            {children}
-          </div>
-        </main>
-        <DebugPanel />
-      </div>
-    </div>
-  );
+    const router = useRouter();
+
+    useEffect(() => {
+        const checkToken = async () => {
+            try {
+                await ensureValidToken();
+            } catch (error) {
+                router.push('/auth/login');
+            }
+        };
+
+        checkToken();
+    }, [router]);
+
+    return (
+        <>
+            <div className="flex min-h-screen">
+                <Sidebar />
+                <div className="flex-1 flex flex-col">
+                    <div className="border-b">
+                        <div className="flex h-16 items-center px-4">
+                            <MainNav className="mx-6" />
+                            <div className="ml-auto flex items-center space-x-4">
+                                <UserNav />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex-1 space-y-4 p-8 pt-6">
+                        {children}
+                    </div>
+                </div>
+            </div>
+            <DebugPanel />
+        </>
+    );
 } 

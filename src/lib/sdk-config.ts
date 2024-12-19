@@ -1,100 +1,71 @@
 import { Configuration } from '@bawes/erp-api-sdk';
 import Cookies from 'js-cookie';
+import axios from 'axios';
 
-// Track refresh state
-let isRefreshing = false;
-let refreshPromise: Promise<void> | null = null;
+export function isTokenExpired(token: string): boolean {
+    try {
+        const [, payload] = token.split('.');
+        const decodedPayload = JSON.parse(atob(payload));
+        // Add 30-second buffer to prevent edge cases
+        return (decodedPayload.exp * 1000) - 30000 <= Date.now();
+    } catch (error) {
+        return true;
+    }
+}
 
-async function handleTokenRefresh() {
+export async function refreshAccessToken(): Promise<string> {
     const refreshToken = Cookies.get('refreshToken');
     if (!refreshToken) {
         throw new Error('No refresh token available');
     }
 
-    const { authService } = await import('@/services/authService');
-    await authService.refreshToken(refreshToken);
-    
-    const newToken = Cookies.get('accessToken');
-    if (!newToken) {
-        throw new Error('No new token after refresh');
-    }
-    
-    return newToken;
-}
-
-// Create SDK configuration with token refresh middleware
-export const sdkConfig = new Configuration({
-    basePath: process.env.NEXT_PUBLIC_ERP_API_URL || 'http://localhost:3000',
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    middleware: [
-        {
-            async pre(context) {
-                // Skip token handling for auth endpoints
-                if (context.url.includes('/auth/login') || 
-                    context.url.includes('/auth/register') ||
-                    context.url.includes('/auth/refresh')) {
-                    return context;
-                }
-
-                let token = Cookies.get('accessToken');
-                
-                if (!token) {
-                    window.location.href = '/auth/login';
-                    throw new Error('No access token');
-                }
-
-                try {
-                    // Check if token is expired
-                    const [, payload] = token.split('.');
-                    const decodedPayload = JSON.parse(atob(payload));
-                    const isExpired = decodedPayload.exp * 1000 <= Date.now();
-
-                    // If token is expired, try to refresh
-                    if (isExpired) {
-                        // If already refreshing, wait for it
-                        if (refreshPromise) {
-                            await refreshPromise;
-                            token = Cookies.get('accessToken');
-                        } else {
-                            // Start new refresh
-                            isRefreshing = true;
-                            refreshPromise = handleTokenRefresh()
-                                .finally(() => {
-                                    isRefreshing = false;
-                                    refreshPromise = null;
-                                });
-
-                            await refreshPromise;
-                            token = Cookies.get('accessToken');
-                        }
-
-                        if (!token) {
-                            Cookies.remove('accessToken');
-                            Cookies.remove('refreshToken');
-                            window.location.href = '/auth/login';
-                            throw new Error('No token after refresh');
-                        }
-                    }
-
-                    // Set the token in headers
-                    context.init.headers = {
-                        ...context.init.headers,
-                        Authorization: `Bearer ${token}`,
-                    };
-
-                    return context;
-                } catch (error) {
-                    // Only redirect to login if we're not already refreshing
-                    if (!isRefreshing) {
-                        Cookies.remove('accessToken');
-                        Cookies.remove('refreshToken');
-                        window.location.href = '/auth/login';
-                    }
-                    throw error;
+    try {
+        const response = await axios.post(
+            `${process.env.NEXT_PUBLIC_ERP_API_URL}/auth/refresh`,
+            { refresh_token: refreshToken },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${refreshToken}`
                 }
             }
+        );
+
+        const { access_token, refresh_token } = response.data;
+        Cookies.set('accessToken', access_token, { path: '/' });
+        Cookies.set('refreshToken', refresh_token, { path: '/' });
+        return access_token;
+    } catch (error) {
+        Cookies.remove('accessToken', { path: '/' });
+        Cookies.remove('refreshToken', { path: '/' });
+        throw new Error('Token refresh failed');
+    }
+}
+
+export async function ensureValidToken(): Promise<void> {
+    const token = Cookies.get('accessToken');
+    if (!token) {
+        throw new Error('No access token available');
+    }
+
+    if (isTokenExpired(token)) {
+        await refreshAccessToken();
+    }
+}
+
+// Create SDK configuration
+export const sdkConfig = new Configuration({
+    basePath: process.env.NEXT_PUBLIC_ERP_API_URL || 'http://localhost:3000',
+    baseOptions: {
+        headers: {
+            'Content-Type': 'application/json',
         }
-    ]
+    },
+    accessToken: () => {
+        const token = Cookies.get('accessToken');
+        if (!token) {
+            throw new Error('No access token available');
+        }
+        return `Bearer ${token}`;
+    }
 }); 
