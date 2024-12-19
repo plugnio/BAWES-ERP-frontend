@@ -5,12 +5,13 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import Cookies from 'js-cookie';
 
 interface DecodedToken {
   exp: number;
   iat: number;
   sub: string;
-  permissions: string[];
+  permissions?: string[];
 }
 
 export function DebugPanel() {
@@ -19,14 +20,14 @@ export function DebugPanel() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    // Get token from localStorage
-    const storedToken = localStorage.getItem('access_token');
-    setToken(storedToken);
+    // Get token from cookies
+    const accessToken = Cookies.get('accessToken');
+    setToken(accessToken || null);
 
-    if (storedToken) {
+    if (accessToken) {
       try {
         // Decode JWT without verification
-        const base64Url = storedToken.split('.')[1];
+        const base64Url = accessToken.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
         const jsonPayload = decodeURIComponent(
           atob(base64)
@@ -40,6 +41,37 @@ export function DebugPanel() {
       }
     }
   }, []);
+
+  // Update token and decoded token when cookies change
+  useEffect(() => {
+    const checkToken = () => {
+      const accessToken = Cookies.get('accessToken');
+      if (accessToken !== token) {
+        setToken(accessToken || null);
+        if (accessToken) {
+          try {
+            const base64Url = accessToken.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+              atob(base64)
+                .split('')
+                .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+            );
+            setDecodedToken(JSON.parse(jsonPayload));
+          } catch (error) {
+            console.error('Error decoding token:', error);
+          }
+        } else {
+          setDecodedToken(null);
+        }
+      }
+    };
+
+    // Check every second for token changes
+    const interval = setInterval(checkToken, 1000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   if (!token || !decodedToken) {
     return null;
@@ -67,16 +99,18 @@ export function DebugPanel() {
       </CollapsibleTrigger>
       <CollapsibleContent className="p-4">
         <Card className="p-4 space-y-4">
-          <div>
-            <h4 className="font-medium">Permissions</h4>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {decodedToken.permissions.map((permission) => (
-                <Badge key={permission} variant="outline">
-                  {permission}
-                </Badge>
-              ))}
+          {decodedToken.permissions && decodedToken.permissions.length > 0 && (
+            <div>
+              <h4 className="font-medium">Permissions</h4>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {decodedToken.permissions.map((permission) => (
+                  <Badge key={permission} variant="outline">
+                    {permission}
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <div>
             <h4 className="font-medium">Token Details</h4>
             <div className="text-sm mt-2 space-y-1">
