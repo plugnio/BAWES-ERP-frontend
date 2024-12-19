@@ -1,23 +1,11 @@
 import { BaseService } from './base.service';
-import Decimal from 'decimal.js';
+import type { AxiosPromise } from 'axios';
+import type { CreateRoleDto } from '@bawes/erp-api-sdk';
 
 interface Permission {
-  id: string;
   code: string;
   name: string;
   description: string;
-  bitfield: string;
-}
-
-interface PermissionCategory {
-  id: string;
-  name: string;
-  description: string;
-  permissions: Permission[];
-}
-
-interface PermissionDashboard {
-  categories: PermissionCategory[];
 }
 
 interface Role {
@@ -28,55 +16,50 @@ interface Role {
   permissions: string[];
 }
 
+interface PermissionDashboard {
+  roles: Role[];
+  permissions: Permission[];
+}
+
 export class PermissionsService extends BaseService {
-  private permissionMap: Record<string, Decimal> = {};
+  private permissionMap = new Map<string, Permission>();
 
   async getDashboard(): Promise<PermissionDashboard> {
     const dashboard = await this.handleRequest<PermissionDashboard>(
-      this.client.permissions.permissionManagementControllerGetPermissionDashboard()
+      this.client.permissions.permissionManagementControllerGetPermissionDashboard() as unknown as AxiosPromise<PermissionDashboard>
     );
     this.updatePermissionMap(dashboard);
     return dashboard;
   }
 
-  async getRole(id: string): Promise<Role> {
+  async createRole(name: string, description: string, color: string, permissions: string[]): Promise<Role> {
+    const roleDto: CreateRoleDto = {
+      name,
+      description,
+      color,
+      permissions,
+    };
     return this.handleRequest<Role>(
-      this.client.permissions.permissionManagementControllerGetRole(id)
+      this.client.roles.roleManagementControllerCreateRole(roleDto) as unknown as AxiosPromise<Role>
     );
   }
 
-  async updateRolePermissions(id: string, permissions: string[]): Promise<Role> {
+  async updateRole(roleId: string, permissions: string[]): Promise<Role> {
     return this.handleRequest<Role>(
-      this.client.permissions.permissionManagementControllerUpdateRolePermissions(id, {
+      this.client.roles.roleManagementControllerTogglePermissions(roleId, {
         data: { permissions }
-      })
+      }) as unknown as AxiosPromise<Role>
     );
-  }
-
-  hasPermission(permissionCode: string, permissionBits: string): boolean {
-    try {
-      const userBits = new Decimal(permissionBits || '0');
-      const permissionBitfield = this.permissionMap[permissionCode];
-
-      if (!permissionBitfield) {
-        console.warn(`Unknown permission: ${permissionCode}`);
-        return false;
-      }
-
-      const divided = userBits.dividedToIntegerBy(permissionBitfield);
-      const modulo = divided.modulo(2);
-      return modulo.equals(1);
-    } catch (err) {
-      console.error('Permission check failed:', err);
-      return false;
-    }
   }
 
   private updatePermissionMap(dashboard: PermissionDashboard) {
-    dashboard.categories.forEach((category) => {
-      category.permissions.forEach((permission) => {
-        this.permissionMap[permission.code] = new Decimal(permission.bitfield);
-      });
+    this.permissionMap.clear();
+    dashboard.permissions.forEach(permission => {
+      this.permissionMap.set(permission.code, permission);
     });
+  }
+
+  getPermissionDetails(code: string): Permission | undefined {
+    return this.permissionMap.get(code);
   }
 } 
