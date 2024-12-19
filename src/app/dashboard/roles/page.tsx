@@ -21,6 +21,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { useEffect } from "react";
 import { Configuration, PermissionManagementApi } from "@bawes/erp-api-sdk";
+import { sdkConfig } from "@/lib/sdk-config";
 
 interface Role {
   id: string;
@@ -49,10 +50,7 @@ export default function RolesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const config = new Configuration({
-          basePath: process.env.NEXT_PUBLIC_API_URL,
-        });
-        const api = new PermissionManagementApi(config);
+        const api = new PermissionManagementApi(sdkConfig);
         const response = await api.permissionManagementControllerGetPermissionDashboard();
         const data = response.data as any;
         setRoles(data.roles);
