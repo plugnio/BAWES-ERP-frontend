@@ -68,4 +68,21 @@ export class PermissionsService extends BaseService {
   getPermissionDetails(code: string): Permission | undefined {
     return this.permissionMap.get(code);
   }
+
+  hasPermission(permissionCode: string, permissionBits: string): boolean {
+    const permission = this.getPermissionDetails(permissionCode);
+    if (!permission) {
+      console.warn(`Unknown permission: ${permissionCode}`);
+      return false;
+    }
+    
+    try {
+      const userBits = BigInt(permissionBits || '0');
+      const permissionBit = BigInt(1) << BigInt(permission.code);
+      return (userBits & permissionBit) === permissionBit;
+    } catch (err) {
+      console.error('Permission check failed:', err);
+      return false;
+    }
+  }
 } 
