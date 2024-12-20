@@ -23,7 +23,9 @@ interface JwtPayload {
 
 /**
  * Service for handling JWT token operations
- * Manages token decoding, validation, and payload extraction
+ * Manages token decoding and validation
+ * Tokens are stored in memory only for security
+ * Refresh tokens are handled by backend in HTTP-only cookies
  */
 export class JwtService extends BaseService {
   /**
@@ -54,7 +56,7 @@ export class JwtService extends BaseService {
   }
 
   /**
-   * Gets the current token from the client
+   * Gets the current token from memory
    * @returns {string | null} The current token or null
    */
   getCurrentToken(): string | null {
@@ -62,7 +64,16 @@ export class JwtService extends BaseService {
   }
 
   /**
+   * Sets the current token in memory
+   * @param {string | null} token - The token to set or null to clear
+   */
+  setCurrentToken(token: string | null): void {
+    this.client.setAccessToken(token);
+  }
+
+  /**
    * Gets the current decoded payload if a valid token exists
+   * If token is expired, it will be cleared
    * @returns {JwtPayload | null} The decoded payload or null
    */
   getCurrentPayload(): JwtPayload | null {
@@ -71,7 +82,11 @@ export class JwtService extends BaseService {
 
     try {
       const payload = this.decodeToken(token);
-      if (this.isTokenExpired(payload)) return null;
+      if (this.isTokenExpired(payload)) {
+        // If token is expired, clear it
+        this.setCurrentToken(null);
+        return null;
+      }
       return payload;
     } catch (error) {
       console.error('Get payload error:', error);

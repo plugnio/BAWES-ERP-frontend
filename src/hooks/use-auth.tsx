@@ -117,6 +117,6 @@ export function useAuth(): UseAuthReturn {
     login,
     register,
     logout,
-    verifyEmail
+    verifyEmail,
   };
 } 
