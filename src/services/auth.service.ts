@@ -2,7 +2,7 @@ import { BaseService } from './base.service';
 import type { LoginDto, RegisterDto, VerifyEmailDto } from '@bawes/erp-api-sdk';
 import type { AxiosResponse } from 'axios';
 
-interface LoginResponse {
+export interface LoginResponse {
   access_token: string;
   expires_in: number;
   id: string;
@@ -11,7 +11,7 @@ interface LoginResponse {
   accountStatus: string;
 }
 
-interface ProfileResponse {
+export interface ProfileResponse {
   id: string;
   nameEn: string;
   nameAr: string;

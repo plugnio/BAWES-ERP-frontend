@@ -2,135 +2,69 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useServices } from './use-services';
+import type { LoginResponse } from '@/services/auth.service';
 
 interface User {
   id: string;
-  name: string;
-  email: string;
+  nameEn: string;
+  nameAr: string;
+  accountStatus: string;
 }
 
 interface UseAuthReturn {
   user: User | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginResponse>;
+  register: (email: string, password: string, nameEn: string, nameAr: string) => Promise<void>;
   logout: () => Promise<void>;
-  verifyEmail: (token: string) => Promise<void>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
 }
 
 export function useAuth(): UseAuthReturn {
-  const { baseService } = useServices();
+  const { auth } = useServices();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
     try {
-      const response = await fetch(`${baseService.configuration.basePath}/auth/me`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get current user');
-      }
-
-      const userData = await response.json();
-      setUser(userData);
+      const currentUser = await auth.getCurrentUser();
+      setUser(currentUser);
     } catch (error) {
       setUser(null);
     } finally {
       setIsLoading(false);
     }
-  }, [baseService.configuration.basePath]);
+  }, [auth]);
 
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await fetch(`${baseService.configuration.basePath}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Login failed');
-      }
-
-      await fetchUser();
-    } catch (error) {
-      throw error;
-    }
+    const response = await auth.login({ email, password });
+    await fetchUser();
+    return response;
   };
 
-  const register = async (email: string, password: string, name: string) => {
-    try {
-      const response = await fetch(`${baseService.configuration.basePath}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, name }),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Registration failed');
-      }
-    } catch (error) {
-      throw error;
-    }
+  const register = async (email: string, password: string, nameEn: string, nameAr: string) => {
+    await auth.register({ email, password, nameEn, nameAr });
   };
 
   const logout = async () => {
-    try {
-      const response = await fetch(`${baseService.configuration.basePath}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Logout failed');
-      }
-
-      setUser(null);
-    } catch (error) {
-      throw error;
-    }
+    await auth.logout();
+    setUser(null);
   };
 
-  const verifyEmail = async (token: string) => {
-    try {
-      const response = await fetch(`${baseService.configuration.basePath}/auth/verify-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Email verification failed');
-      }
-    } catch (error) {
-      throw error;
-    }
+  const verifyEmail = async (email: string, code: string) => {
+    await auth.verifyEmail({ email, code });
   };
 
   return {
     user,
-    isAuthenticated: !!user,
     isLoading,
     login,
     register,
     logout,
-    verifyEmail,
+    verifyEmail
   };
 } 
