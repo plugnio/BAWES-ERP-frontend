@@ -51,6 +51,10 @@ export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  /**
+   * Fetches the current user's data from the authentication service
+   * Updates the user state and loading state based on the result
+   */
   const fetchUser = useCallback(async () => {
     try {
       const currentUser = await auth.getCurrentUser();
@@ -62,25 +66,47 @@ export function useAuth(): UseAuthReturn {
     }
   }, [auth]);
 
+  // Initialize user data on mount
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
 
+  /**
+   * Authenticates a user with their email and password
+   * @param {string} email - The user's email address
+   * @param {string} password - The user's password
+   * @returns {Promise<LoginResponse>} The login response containing tokens
+   */
   const login = async (email: string, password: string) => {
     const response = await auth.login({ email, password });
     await fetchUser();
     return response;
   };
 
+  /**
+   * Registers a new user account
+   * @param {string} email - The user's email address
+   * @param {string} password - The user's password
+   * @param {string} nameEn - The user's name in English
+   * @param {string} nameAr - The user's name in Arabic
+   */
   const register = async (email: string, password: string, nameEn: string, nameAr: string) => {
     await auth.register({ email, password, nameEn, nameAr });
   };
 
+  /**
+   * Logs out the current user and clears the user state
+   */
   const logout = async () => {
     await auth.logout();
     setUser(null);
   };
 
+  /**
+   * Verifies a user's email address with a verification code
+   * @param {string} email - The email address to verify
+   * @param {string} code - The verification code
+   */
   const verifyEmail = async (email: string, code: string) => {
     await auth.verifyEmail({ email, code });
   };

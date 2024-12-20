@@ -62,6 +62,10 @@ export function usePeople(): UsePeopleReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Handles error states uniformly across all operations
+   * @param {unknown} err - The error to handle
+   */
   const handleError = (err: unknown) => {
     if (err && typeof err === 'object' && 'message' in err) {
       setError(err.message as string);
@@ -71,6 +75,11 @@ export function usePeople(): UsePeopleReturn {
     setIsLoading(false);
   };
 
+  /**
+   * Loads all people from the service
+   * Updates the people state with the result
+   * @throws {Error} If the service call fails
+   */
   const loadPeople = async () => {
     try {
       setIsLoading(true);
@@ -85,6 +94,12 @@ export function usePeople(): UsePeopleReturn {
     }
   };
 
+  /**
+   * Loads a specific person by their ID
+   * Updates the selectedPerson state with the result
+   * @param {string} id - The ID of the person to load
+   * @throws {Error} If the service call fails
+   */
   const loadPerson = async (id: string) => {
     try {
       setIsLoading(true);
@@ -99,6 +114,12 @@ export function usePeople(): UsePeopleReturn {
     }
   };
 
+  /**
+   * Creates a new person record
+   * Updates both people and selectedPerson states with the result
+   * @param {CreatePersonDto} data - The data for creating the person
+   * @throws {Error} If the service call fails
+   */
   const createPerson = async (data: CreatePersonDto) => {
     try {
       setIsLoading(true);
@@ -114,6 +135,13 @@ export function usePeople(): UsePeopleReturn {
     }
   };
 
+  /**
+   * Updates an existing person record
+   * Updates both people and selectedPerson states with the result
+   * @param {string} id - The ID of the person to update
+   * @param {UpdatePersonDto} data - The updated person data
+   * @throws {Error} If the service call fails
+   */
   const updatePerson = async (id: string, data: UpdatePersonDto) => {
     try {
       setIsLoading(true);
@@ -129,6 +157,12 @@ export function usePeople(): UsePeopleReturn {
     }
   };
 
+  /**
+   * Removes a person record
+   * Updates both people and selectedPerson states accordingly
+   * @param {string} id - The ID of the person to remove
+   * @throws {Error} If the service call fails
+   */
   const removePerson = async (id: string) => {
     try {
       setIsLoading(true);

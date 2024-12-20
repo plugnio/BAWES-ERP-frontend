@@ -87,6 +87,10 @@ export function usePermissions(): UsePermissionsReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Handles error states uniformly across all operations
+   * @param {unknown} err - The error to handle
+   */
   const handleError = (err: unknown) => {
     if (err && typeof err === 'object' && 'message' in err) {
       setError(err.message as string);
@@ -96,6 +100,11 @@ export function usePermissions(): UsePermissionsReturn {
     setIsLoading(false);
   };
 
+  /**
+   * Loads the complete permissions dashboard
+   * Updates the dashboard state with roles and permission categories
+   * @throws {Error} If the service call fails
+   */
   const loadDashboard = async () => {
     try {
       setIsLoading(true);
@@ -110,6 +119,12 @@ export function usePermissions(): UsePermissionsReturn {
     }
   };
 
+  /**
+   * Loads a specific role by its ID
+   * Updates the currentRole state with the result
+   * @param {string} roleId - The ID of the role to load
+   * @throws {Error} If the service call fails
+   */
   const loadRole = async (roleId: string) => {
     try {
       setIsLoading(true);
@@ -124,6 +139,13 @@ export function usePermissions(): UsePermissionsReturn {
     }
   };
 
+  /**
+   * Updates the permissions assigned to a role
+   * Updates the currentRole state with the result
+   * @param {string} roleId - The ID of the role to update
+   * @param {string[]} permissionCodes - The new list of permission codes for the role
+   * @throws {Error} If the service call fails
+   */
   const updateRolePermissions = async (roleId: string, permissionCodes: string[]) => {
     try {
       setIsLoading(true);
@@ -138,6 +160,12 @@ export function usePermissions(): UsePermissionsReturn {
     }
   };
 
+  /**
+   * Checks if a specific permission is granted in a permission bitfield
+   * @param {string} permissionCode - The code of the permission to check
+   * @param {string} permissionBits - The permission bitfield to check against
+   * @returns {boolean} True if the permission is granted, false otherwise
+   */
   const hasPermission = useCallback(
     (permissionCode: string, permissionBits: string) => {
       return permissions.hasPermission(permissionCode, permissionBits);
