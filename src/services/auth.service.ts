@@ -38,8 +38,6 @@ export interface ProfileResponse {
  * @extends BaseService
  */
 export class AuthService extends BaseService {
-  /** Timer for token refresh */
-  private refreshTokenTimeout?: NodeJS.Timeout;
   /** JWT service instance */
   private jwtService: JwtService;
   /** Cached user profile data */
@@ -167,7 +165,15 @@ export class AuthService extends BaseService {
         return this.currentUser;
       }
 
-      return null;
+      // No valid access token, but we might have a valid refresh token
+      // Attempt refresh once
+      try {
+        await this.refresh();
+        return this.currentUser;
+      } catch {
+        // If refresh fails, we're not authenticated
+        return null;
+      }
     } catch (error) {
       this.handleError(error);
       return null;
@@ -204,44 +210,6 @@ export class AuthService extends BaseService {
         });
       }
       throw error;
-    }
-  }
-
-  /**
-   * Sets up automatic token refresh before expiration
-   * @param {number} expiresIn - Token expiration time in seconds
-   * @private
-   */
-  private setupRefreshToken(expiresIn: number) {
-    this.clearRefreshTokenTimeout();
-    const timeout = (expiresIn * 1000) - 60000; // Refresh 1 minute before expiry
-    
-    this.refreshTokenTimeout = setTimeout(() => {
-      this.refresh().catch((error) => {
-        console.error('Token refresh failed:', error);
-        this.handleRefreshFailure();
-      });
-    }, timeout);
-  }
-
-  /**
-   * Handles token refresh failures
-   * Clears tokens and cached data
-   * @private
-   */
-  private handleRefreshFailure() {
-    this.jwtService.setCurrentToken(null);
-    this.clearRefreshTokenTimeout();
-    this.currentUser = null;
-  }
-
-  /**
-   * Clears the token refresh timer
-   * @private
-   */
-  private clearRefreshTokenTimeout() {
-    if (this.refreshTokenTimeout) {
-      clearTimeout(this.refreshTokenTimeout);
     }
   }
 } 
