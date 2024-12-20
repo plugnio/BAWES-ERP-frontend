@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { usePermissions as usePermissionsService } from './use-services';
 
+/**
+ * Represents a single permission in the system
+ */
 interface Permission {
   id: string;
   code: string;
@@ -9,6 +12,9 @@ interface Permission {
   bitfield: string;
 }
 
+/**
+ * Represents a category of permissions
+ */
 interface PermissionCategory {
   id: string;
   name: string;
@@ -16,6 +22,9 @@ interface PermissionCategory {
   permissions: Permission[];
 }
 
+/**
+ * Represents a role with assigned permissions
+ */
 interface Role {
   id: string;
   name: string;
@@ -24,22 +33,53 @@ interface Role {
   permissions: string[];
 }
 
+/**
+ * Represents the complete permissions dashboard state
+ */
 interface PermissionDashboard {
   roles: Role[];
   permissionCategories: PermissionCategory[];
 }
 
+/**
+ * Return type for the usePermissions hook
+ */
 interface UsePermissionsReturn {
+  /** Complete permissions dashboard data */
   dashboard: PermissionDashboard | null;
+  /** Currently selected role */
   currentRole: Role | null;
+  /** Whether any operation is in progress */
   isLoading: boolean;
+  /** Error message if any operation failed */
   error: string | null;
+  /** Checks if a permission is granted */
   hasPermission: (permissionCode: string, permissionBits: string) => boolean;
+  /** Loads the complete permissions dashboard */
   loadDashboard: () => Promise<void>;
+  /** Loads a specific role by ID */
   loadRole: (roleId: string) => Promise<void>;
+  /** Updates the permissions assigned to a role */
   updateRolePermissions: (roleId: string, permissions: string[]) => Promise<void>;
 }
 
+/**
+ * Hook for managing permissions and roles in the system
+ * 
+ * Provides functionality to manage roles, their permissions, and check permission grants.
+ * Includes loading and error states for all operations.
+ * 
+ * @example
+ * ```tsx
+ * const { dashboard, hasPermission } = usePermissions();
+ * 
+ * if (hasPermission('USERS_MANAGE', userPermissions)) {
+ *   return <UserManagement />;
+ * }
+ * ```
+ * 
+ * @returns {UsePermissionsReturn} Permissions management state and methods
+ */
 export function usePermissions(): UsePermissionsReturn {
   const permissions = usePermissionsService();
   const [dashboard, setDashboard] = useState<PermissionDashboard | null>(null);

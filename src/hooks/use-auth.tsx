@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { useServices } from './use-services';
 import type { LoginResponse } from '@/services/auth.service';
 
+/**
+ * Represents a user in the system
+ */
 interface User {
   id: string;
   nameEn: string;
@@ -11,15 +14,38 @@ interface User {
   accountStatus: string;
 }
 
+/**
+ * Return type for the useAuth hook
+ */
 interface UseAuthReturn {
+  /** The currently authenticated user or null if not authenticated */
   user: User | null;
+  /** Whether authentication state is being loaded */
   isLoading: boolean;
+  /** Authenticates a user with email and password */
   login: (email: string, password: string) => Promise<LoginResponse>;
+  /** Registers a new user account */
   register: (email: string, password: string, nameEn: string, nameAr: string) => Promise<void>;
+  /** Logs out the current user */
   logout: () => Promise<void>;
+  /** Verifies a user's email address */
   verifyEmail: (email: string, code: string) => Promise<void>;
 }
 
+/**
+ * Hook for managing authentication state and operations
+ * 
+ * @example
+ * ```tsx
+ * const { user, login, logout } = useAuth();
+ * 
+ * if (user) {
+ *   return <div>Welcome, {user.nameEn}</div>;
+ * }
+ * ```
+ * 
+ * @returns {UseAuthReturn} Authentication state and methods
+ */
 export function useAuth(): UseAuthReturn {
   const { auth } = useServices();
   const [user, setUser] = useState<User | null>(null);
