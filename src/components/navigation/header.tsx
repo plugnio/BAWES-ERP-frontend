@@ -2,8 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { MainNav } from './main-nav';
-import { UserNav } from './user-nav';
+import { MainNav } from '@/components/navigation/main-nav';
+import { UserNav } from '@/components/navigation/user-nav';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 
 export function Header() {
