@@ -5,7 +5,7 @@ import { Configuration } from '@bawes/erp-api-sdk';
  */
 export const SDK_CONFIG = {
   /** Base URL for API requests from environment variables */
-  baseUrl: process.env.NEXT_PUBLIC_API_URL,
+  baseUrl: process.env.NEXT_PUBLIC_ERP_API_URL,
   /** Time in milliseconds before token expiry to trigger refresh (1 minute) */
   refreshThreshold: 60 * 1000,
 };

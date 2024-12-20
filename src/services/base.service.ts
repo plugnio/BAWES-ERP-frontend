@@ -16,15 +16,11 @@ import { getApiClient } from '@/lib/sdk/api';
  * ```
  */
 export class BaseService {
-  /** SDK configuration instance */
-  protected configuration: Configuration;
   /** API client instance */
   protected client = getApiClient();
 
   constructor() {
-    this.configuration = new Configuration({
-      basePath: process.env.NEXT_PUBLIC_API_URL,
-    });
+    // Configuration is handled by SDK config
   }
 
   /**
