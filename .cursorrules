@@ -1,3 +1,4 @@
+- IMPORTANT: All token handling is from sdk/api.ts and the bawes sdk
 - Use BAWES SDK to generate code and interact with the backend ERP API (node_modules/@bawes/erp-api-sdk).
 - Whenenever you do any code changes, validate to confirm there are no linting errors and keep fixing until you get it right. Wait for linting to complete, Verify there are no errors, Only then share the solution
 - When installing npm dependencies, make sure you aren't repeating installs that have already been done.
