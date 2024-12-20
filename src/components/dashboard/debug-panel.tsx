@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useServices } from '@/hooks';
-import Cookies from 'js-cookie';
+import { JwtService } from '@/services/jwt.service';
 
 // Remove the strict interface to allow any token fields
 interface DecodedToken {
@@ -18,25 +18,15 @@ export function DebugPanel() {
   const [token, setToken] = useState<string | null>(null);
   const [decodedToken, setDecodedToken] = useState<DecodedToken | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-
-  const decodeToken = (accessToken: string) => {
-    try {
-      const [, payload] = accessToken.split('.');
-      const decodedPayload = JSON.parse(atob(payload));
-      return decodedPayload;
-    } catch (error) {
-      console.error('Error decoding token:', error);
-      return null;
-    }
-  };
+  const jwtService = new JwtService();
 
   useEffect(() => {
-    // Get token from cookies
-    const accessToken = Cookies.get('accessToken');
-    setToken(accessToken || null);
+    // Get token from the JWT service
+    const accessToken = jwtService.getCurrentToken();
+    setToken(accessToken);
 
     if (accessToken) {
-      const decoded = decodeToken(accessToken);
+      const decoded = jwtService.decodeToken(accessToken);
       setDecodedToken(decoded);
     }
   }, []);
@@ -44,11 +34,11 @@ export function DebugPanel() {
   // Update token and decoded token when auth state changes
   useEffect(() => {
     const checkToken = () => {
-      const accessToken = Cookies.get('accessToken');
+      const accessToken = jwtService.getCurrentToken();
       if (accessToken !== token) {
-        setToken(accessToken || null);
+        setToken(accessToken);
         if (accessToken) {
-          const decoded = decodeToken(accessToken);
+          const decoded = jwtService.decodeToken(accessToken);
           setDecodedToken(decoded);
         } else {
           setDecodedToken(null);
@@ -72,49 +62,52 @@ export function DebugPanel() {
     <Collapsible
       open={isOpen}
       onOpenChange={setIsOpen}
-      className="fixed bottom-0 right-0 w-96 bg-white shadow-lg rounded-t-lg"
+      className="fixed bottom-0 right-0 w-96 bg-background border border-border shadow-lg rounded-t-lg z-50"
     >
       <CollapsibleTrigger asChild>
         <Button
           variant="ghost"
-          className="w-full flex items-center justify-between p-2 text-sm font-medium"
+          className="w-full flex items-center justify-between p-3 text-sm font-medium hover:bg-accent"
         >
-          Debug Panel
-          <Badge variant="secondary">
-            {minutesRemaining}m remaining
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-green-500" />
+            Debug Panel
+          </span>
+          <Badge variant="outline" className="ml-2">
+            {minutesRemaining}m
           </Badge>
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="p-4">
-        <Card className="p-4 space-y-4">
+      <CollapsibleContent className="p-4 border-t border-border">
+        <Card className="p-4 space-y-6 bg-card text-card-foreground">
           {decodedToken.permissions && decodedToken.permissions.length > 0 && (
-            <div>
-              <h4 className="font-medium">Permissions</h4>
-              <div className="flex flex-wrap gap-2 mt-2">
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold">Permissions</h4>
+              <div className="flex flex-wrap gap-1.5">
                 {decodedToken.permissions.map((permission: string) => (
-                  <Badge key={permission} variant="outline">
+                  <Badge key={permission} variant="secondary" className="text-xs">
                     {permission}
                   </Badge>
                 ))}
               </div>
             </div>
           )}
-          <div>
-            <h4 className="font-medium">Token Details</h4>
-            <div className="text-sm mt-2 space-y-1">
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">Token Details</h4>
+            <div className="space-y-3">
               {Object.entries(decodedToken).map(([key, value]) => (
-                <div key={key} className="flex flex-col">
-                  <p className="font-medium">{key}:</p>
-                  <pre className="text-xs bg-gray-50 p-1 rounded">
+                <div key={key} className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">{key}</p>
+                  <pre className="text-xs p-2 rounded-md bg-muted/50 overflow-auto">
                     {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
                   </pre>
                 </div>
               ))}
             </div>
           </div>
-          <div>
-            <h4 className="font-medium">Bearer Token</h4>
-            <pre className="text-xs bg-gray-50 p-2 rounded mt-1 break-all whitespace-pre-wrap">
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">Bearer Token</h4>
+            <pre className="text-xs p-2 rounded-md bg-muted/50 overflow-auto break-all whitespace-pre-wrap">
               Bearer {token}
             </pre>
           </div>
