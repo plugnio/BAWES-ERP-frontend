@@ -1,10 +1,45 @@
 import React from 'react';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 
+/**
+ * Props for the public layout component
+ * @interface PublicLayoutProps
+ */
 interface PublicLayoutProps {
+  /** Child components to render within the layout */
   children: React.ReactNode;
 }
 
+/**
+ * Layout component for public routes
+ * Provides a simplified layout for unauthenticated pages
+ * 
+ * Features:
+ * - Minimal header with theme toggle
+ * - Centered content with max width
+ * - Responsive container with padding
+ * - Full height layout with flexbox
+ * 
+ * Used for:
+ * - Login page
+ * - Registration page
+ * - Email verification
+ * - Public landing pages
+ * 
+ * @param {PublicLayoutProps} props - Component props
+ * @returns {JSX.Element} Public layout structure
+ * 
+ * @example
+ * ```tsx
+ * // Pages wrapped with this layout will have centered content
+ * // and minimal navigation
+ * export default function LoginPage() {
+ *   return (
+ *     <div>Login form</div>
+ *   );
+ * }
+ * ```
+ */
 export default function PublicLayout({ children }: PublicLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col">
