@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ServicesProvider } from "@/hooks/use-services";
+import { ThemeProvider } from "next-themes";
 
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
@@ -35,12 +36,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ServicesProvider>
-          {children}
-          <Toaster />
-        </ServicesProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ServicesProvider>
+            {children}
+            <Toaster />
+          </ServicesProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
