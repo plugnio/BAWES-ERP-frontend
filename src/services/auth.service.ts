@@ -165,15 +165,9 @@ export class AuthService extends BaseService {
         return this.currentUser;
       }
 
-      // No valid access token, but we might have a valid refresh token
-      // Attempt refresh once
-      try {
-        await this.refresh();
-        return this.currentUser;
-      } catch {
-        // If refresh fails, we're not authenticated
-        return null;
-      }
+      // No valid token or payload, return null
+      // Don't attempt refresh as it will be handled by the SDK's automatic refresh
+      return null;
     } catch (error) {
       this.handleError(error);
       return null;
@@ -203,12 +197,11 @@ export class AuthService extends BaseService {
       
       return response.data;
     } catch (error: any) {
-      // If refresh fails with 401, clear all tokens via logout
-      if (error?.response?.status === 401) {
-        await this.logout().catch(() => {
-          // Ignore errors from logout as we're already handling an error
-        });
-      }
+      // Don't attempt logout on refresh failure
+      // Just clear local state and let the auth hook handle redirection
+      this.jwtService.setCurrentToken(null);
+      this.client.reset();
+      this.currentUser = null;
       throw error;
     }
   }
