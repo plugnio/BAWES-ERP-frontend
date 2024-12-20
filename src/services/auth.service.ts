@@ -146,20 +146,19 @@ export class AuthService extends BaseService {
 
   /**
    * Retrieves the current user's profile data
-   * Returns cached profile data if available
+   * Returns cached profile data if available, null if not logged in
    * 
-   * @returns {Promise<ProfileResponse>} Current user's profile
-   * @throws {Error} If user is not logged in
+   * @returns {Promise<ProfileResponse | null>} Current user's profile or null
    */
-  async getCurrentUser(): Promise<ProfileResponse> {
+  async getCurrentUser(): Promise<ProfileResponse | null> {
     try {
       if (!this.currentUser) {
-        throw new Error('User is not logged in');
+        return null;
       }
       return this.currentUser;
     } catch (error) {
       this.handleError(error);
-      throw error;
+      return null;
     }
   }
 
