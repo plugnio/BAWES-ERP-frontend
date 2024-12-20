@@ -1,6 +1,7 @@
 import { Configuration } from '@bawes/erp-api-sdk';
 import { AxiosPromise } from 'axios';
 import { getApiClient } from '@/lib/sdk/api';
+import { debugLog } from '@/lib/debug';
 
 /**
  * Base service class that provides common functionality for all API services
@@ -46,7 +47,7 @@ export class BaseService {
    * @throws {Error} Always throws the error after logging
    */
   protected handleError(error: unknown): never {
-    console.error('API Error:', error);
+    debugLog('API Error:', error);
     throw error;
   }
 } 
