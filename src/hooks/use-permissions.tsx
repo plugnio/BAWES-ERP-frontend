@@ -16,16 +16,17 @@ interface PermissionCategory {
   permissions: Permission[];
 }
 
-interface PermissionDashboard {
-  categories: PermissionCategory[];
-}
-
 interface Role {
   id: string;
   name: string;
   description: string;
   color: string;
   permissions: string[];
+}
+
+interface PermissionDashboard {
+  roles: Role[];
+  permissionCategories: PermissionCategory[];
 }
 
 interface UsePermissionsReturn {

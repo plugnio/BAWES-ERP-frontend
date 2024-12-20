@@ -3,9 +3,18 @@ import type { AxiosPromise } from 'axios';
 import type { CreateRoleDto } from '@bawes/erp-api-sdk';
 
 interface Permission {
+  id: string;
   code: string;
   name: string;
   description: string;
+  bitfield: string;
+}
+
+interface PermissionCategory {
+  id: string;
+  name: string;
+  description: string;
+  permissions: Permission[];
 }
 
 interface Role {
@@ -18,7 +27,7 @@ interface Role {
 
 interface PermissionDashboard {
   roles: Role[];
-  permissions: Permission[];
+  permissionCategories: PermissionCategory[];
 }
 
 export class PermissionsService extends BaseService {
@@ -60,8 +69,10 @@ export class PermissionsService extends BaseService {
 
   private updatePermissionMap(dashboard: PermissionDashboard) {
     this.permissionMap.clear();
-    dashboard.permissions.forEach(permission => {
-      this.permissionMap.set(permission.code, permission);
+    dashboard.permissionCategories.forEach(category => {
+      category.permissions.forEach(permission => {
+        this.permissionMap.set(permission.code, permission);
+      });
     });
   }
 
@@ -78,7 +89,7 @@ export class PermissionsService extends BaseService {
     
     try {
       const userBits = BigInt(permissionBits || '0');
-      const permissionBit = BigInt(1) << BigInt(permission.code);
+      const permissionBit = BigInt(permission.bitfield);
       return (userBits & permissionBit) === permissionBit;
     } catch (err) {
       console.error('Permission check failed:', err);
