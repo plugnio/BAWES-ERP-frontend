@@ -26,6 +26,7 @@ class ApiClient {
   private configuration: Configuration;
   private accessToken: string | null = null;
   private refreshTokenTimeout?: NodeJS.Timeout;
+  private readonly REFRESH_TOKEN_COOKIE = 'refresh_token';
 
   /** Authentication API instance */
   readonly auth: AuthenticationApi;
@@ -75,6 +76,17 @@ class ApiClient {
   }
 
   /**
+   * Checks if a valid refresh token cookie exists
+   * @returns {boolean} True if a valid refresh token cookie exists
+   * @private
+   */
+  private hasValidRefreshToken(): boolean {
+    const cookies = document.cookie.split(';');
+    const refreshCookie = cookies.find(cookie => cookie.trim().startsWith(`${this.REFRESH_TOKEN_COOKIE}=`));
+    return !!refreshCookie && refreshCookie.trim() !== `${this.REFRESH_TOKEN_COOKIE}=`;
+  }
+
+  /**
    * Sets up automatic token refresh before expiration
    * Clears any existing refresh timeout before setting new one
    * @param {number} expiresIn - Token expiration time in seconds
@@ -97,8 +109,13 @@ class ApiClient {
    * @returns {Promise<TokenResponse>} New token response
    * @throws {Error} If refresh fails or response format is invalid
    */
-  private async refreshToken(): Promise<TokenResponse> {
+  async refreshToken(): Promise<TokenResponse> {
     try {
+      // Only attempt refresh if we have a valid refresh token cookie
+      if (!this.hasValidRefreshToken()) {
+        throw new Error('No valid refresh token');
+      }
+
       const response = await this.auth.authControllerRefresh({
         refresh_token: 'dummy', // The actual token is sent via cookie
       });
@@ -123,6 +140,31 @@ class ApiClient {
     } catch (error) {
       this.handleRefreshFailure();
       throw error;
+    }
+  }
+
+  /**
+   * Gets the current token payload if valid
+   * @returns {any | null} The decoded token payload or null
+   */
+  getTokenPayload(): any | null {
+    const token = this.getAccessToken();
+    if (!token) return null;
+
+    try {
+      const base64Payload = token.split('.')[1];
+      const payload = JSON.parse(atob(base64Payload));
+      
+      // Check if token is expired
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (payload.exp <= currentTime) {
+        this.handleRefreshFailure();
+        return null;
+      }
+
+      return payload;
+    } catch {
+      return null;
     }
   }
 

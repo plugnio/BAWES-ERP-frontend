@@ -21,5 +21,6 @@ export const createConfiguration = () => new Configuration({
     headers: {
       'Content-Type': 'application/json',
     },
+    withCredentials: true,
   },
 }); 
