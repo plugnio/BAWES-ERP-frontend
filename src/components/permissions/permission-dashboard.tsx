@@ -98,7 +98,7 @@ export function PermissionDashboard({
       <CardContent>
         <ScrollArea className="h-[400px] pr-4">
           <div className="space-y-6">
-            {dashboard.categories.map((category) => (
+            {dashboard.permissionCategories.map((category) => (
               <div key={category.id} className="space-y-4">
                 <h3 className="font-medium text-lg">{category.name}</h3>
                 {category.description && (

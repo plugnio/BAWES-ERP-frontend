@@ -45,8 +45,8 @@ export function RoleList({ onRoleSelect, selectedRoleId, className }: RoleListPr
   }
 
   // Extract unique roles from permissions
-  const roles = dashboard.categories.flatMap(category =>
-    category.permissions.map(permission => ({
+  const roles = dashboard.permissionCategories.flatMap((category) =>
+    category.permissions.map((permission) => ({
       id: permission.id,
       name: permission.name,
       description: permission.description,
