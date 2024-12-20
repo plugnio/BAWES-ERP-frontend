@@ -2,26 +2,74 @@ import { BaseService } from './base.service';
 import type { LoginDto, RegisterDto, VerifyEmailDto } from '@bawes/erp-api-sdk';
 import type { AxiosResponse } from 'axios';
 
+/**
+ * Response interface for successful login
+ * @interface LoginResponse
+ */
 export interface LoginResponse {
+  /** JWT access token for API authentication */
   access_token: string;
+  /** Token expiration time in seconds */
   expires_in: number;
+  /** User's unique identifier */
   id: string;
+  /** User's name in English */
   nameEn: string;
+  /** User's name in Arabic */
   nameAr: string;
+  /** Current status of the user's account */
   accountStatus: string;
 }
 
+/**
+ * Response interface for user profile data
+ * @interface ProfileResponse
+ */
 export interface ProfileResponse {
+  /** User's unique identifier */
   id: string;
+  /** User's name in English */
   nameEn: string;
+  /** User's name in Arabic */
   nameAr: string;
+  /** Current status of the user's account */
   accountStatus: string;
 }
 
+/**
+ * Service handling authentication and user session management
+ * Provides methods for login, registration, email verification, and session management
+ * 
+ * @extends BaseService
+ * 
+ * @example
+ * ```typescript
+ * const authService = new AuthService();
+ * 
+ * // Login
+ * const user = await authService.login({
+ *   email: 'user@example.com',
+ *   password: 'password123'
+ * });
+ * 
+ * // Get current user
+ * const profile = await authService.getCurrentUser();
+ * ```
+ */
 export class AuthService extends BaseService {
+  /** Timer for token refresh */
   private refreshTokenTimeout?: NodeJS.Timeout;
+  /** Cached user profile data */
   private currentUser: ProfileResponse | null = null;
 
+  /**
+   * Authenticates a user with their credentials
+   * Sets up token refresh and caches user profile on success
+   * 
+   * @param {LoginDto} loginDto - Login credentials
+   * @returns {Promise<LoginResponse>} Login response with tokens and user data
+   * @throws {Error} If authentication fails
+   */
   async login(loginDto: LoginDto): Promise<LoginResponse> {
     try {
       const response = await this.client.auth.authControllerLogin(loginDto) as unknown as AxiosResponse<LoginResponse>;
@@ -44,6 +92,12 @@ export class AuthService extends BaseService {
     }
   }
 
+  /**
+   * Registers a new user account
+   * 
+   * @param {RegisterDto} registerDto - Registration data
+   * @throws {Error} If registration fails
+   */
   async register(registerDto: RegisterDto) {
     try {
       const response = await this.client.auth.authControllerRegister(registerDto);
@@ -54,6 +108,12 @@ export class AuthService extends BaseService {
     }
   }
 
+  /**
+   * Verifies a user's email address with a verification code
+   * 
+   * @param {VerifyEmailDto} verifyEmailDto - Email verification data
+   * @throws {Error} If verification fails
+   */
   async verifyEmail(verifyEmailDto: VerifyEmailDto) {
     try {
       const response = await this.client.auth.authControllerVerifyEmail(verifyEmailDto);
@@ -64,6 +124,12 @@ export class AuthService extends BaseService {
     }
   }
 
+  /**
+   * Logs out the current user
+   * Clears tokens, refresh timer, and cached user data
+   * 
+   * @throws {Error} If logout fails
+   */
   async logout() {
     try {
       await this.client.auth.authControllerLogout({
@@ -78,6 +144,13 @@ export class AuthService extends BaseService {
     }
   }
 
+  /**
+   * Retrieves the current user's profile data
+   * Returns cached profile data if available
+   * 
+   * @returns {Promise<ProfileResponse>} Current user's profile
+   * @throws {Error} If user is not logged in
+   */
   async getCurrentUser(): Promise<ProfileResponse> {
     try {
       if (!this.currentUser) {
@@ -90,6 +163,11 @@ export class AuthService extends BaseService {
     }
   }
 
+  /**
+   * Sets up automatic token refresh before expiration
+   * @param {number} expiresIn - Token expiration time in seconds
+   * @private
+   */
   private setupRefreshToken(expiresIn: number) {
     this.clearRefreshTokenTimeout();
     const timeout = (expiresIn * 1000) - 60000; // Refresh 1 minute before expiry
@@ -102,6 +180,14 @@ export class AuthService extends BaseService {
     }, timeout);
   }
 
+  /**
+   * Refreshes the access token before it expires
+   * Updates cached user profile if new data is available
+   * 
+   * @returns {Promise<LoginResponse>} New tokens and user data
+   * @throws {Error} If refresh fails
+   * @private
+   */
   private async refresh(): Promise<LoginResponse> {
     try {
       const response = await this.client.auth.authControllerRefresh({
@@ -129,6 +215,11 @@ export class AuthService extends BaseService {
     }
   }
 
+  /**
+   * Handles token refresh failures
+   * Clears tokens and cached data
+   * @private
+   */
   private handleRefreshFailure() {
     this.client.setAccessToken(null);
     this.clearRefreshTokenTimeout();
@@ -136,6 +227,10 @@ export class AuthService extends BaseService {
     // Redirect to login or show session expired message
   }
 
+  /**
+   * Clears the token refresh timer
+   * @private
+   */
   private clearRefreshTokenTimeout() {
     if (this.refreshTokenTimeout) {
       clearTimeout(this.refreshTokenTimeout);
