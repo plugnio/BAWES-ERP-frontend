@@ -87,7 +87,7 @@ export function usePermissions(): UsePermissionsReturn {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await permissions.updateRolePermissions(roleId, permissionCodes);
+      const result = await permissions.updateRole(roleId, permissionCodes);
       setCurrentRole(result);
     } catch (err) {
       handleError(err);

@@ -32,6 +32,12 @@ export class PermissionsService extends BaseService {
     return dashboard;
   }
 
+  async getRole(roleId: string): Promise<Role> {
+    return this.handleRequest<Role>(
+      this.client.permissions.permissionManagementControllerGetRole(roleId) as unknown as AxiosPromise<Role>
+    );
+  }
+
   async createRole(name: string, description: string, color: string, permissions: string[]): Promise<Role> {
     const roleDto: CreateRoleDto = {
       name,
