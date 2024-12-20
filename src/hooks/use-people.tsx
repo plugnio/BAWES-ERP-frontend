@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useCallback } from 'react';
 import type { CreatePersonDto, UpdatePersonDto } from '@bawes/erp-api-sdk';
 import { usePeople as usePeopleService } from './use-services';

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext } from 'react';
 import type { Services } from '../services';
 import { getServices } from '../services';
