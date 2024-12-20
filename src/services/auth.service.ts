@@ -1,4 +1,5 @@
 import { BaseService } from './base.service';
+import { JwtService } from './jwt.service';
 import type { LoginDto, RegisterDto, VerifyEmailDto } from '@bawes/erp-api-sdk';
 import type { AxiosResponse } from 'axios';
 
@@ -11,14 +12,6 @@ export interface LoginResponse {
   access_token: string;
   /** Token expiration time in seconds */
   expires_in: number;
-  /** User's unique identifier */
-  id: string;
-  /** User's name in English */
-  nameEn: string;
-  /** User's name in Arabic */
-  nameAr: string;
-  /** Current status of the user's account */
-  accountStatus: string;
 }
 
 /**
@@ -34,6 +27,8 @@ export interface ProfileResponse {
   nameAr: string;
   /** Current status of the user's account */
   accountStatus: string;
+  /** User's permission bits */
+  permissionBits: string;
 }
 
 /**
@@ -41,51 +36,60 @@ export interface ProfileResponse {
  * Provides methods for login, registration, email verification, and session management
  * 
  * @extends BaseService
- * 
- * @example
- * ```typescript
- * const authService = new AuthService();
- * 
- * // Login
- * const user = await authService.login({
- *   email: 'user@example.com',
- *   password: 'password123'
- * });
- * 
- * // Get current user
- * const profile = await authService.getCurrentUser();
- * ```
  */
 export class AuthService extends BaseService {
   /** Timer for token refresh */
   private refreshTokenTimeout?: NodeJS.Timeout;
+  /** JWT service instance */
+  private jwtService: JwtService;
   /** Cached user profile data */
   private currentUser: ProfileResponse | null = null;
 
+  constructor() {
+    super();
+    this.jwtService = new JwtService();
+  }
+
+  /**
+   * Extracts user profile from JWT payload
+   * @param {JwtPayload} payload - The JWT payload
+   * @returns {ProfileResponse} User profile data
+   * @private
+   */
+  private extractUserFromPayload(payload: any): ProfileResponse {
+    return {
+      id: payload.sub,
+      nameEn: payload.nameEn,
+      nameAr: payload.nameAr,
+      accountStatus: payload.accountStatus,
+      permissionBits: payload.permissionBits
+    };
+  }
+
   /**
    * Authenticates a user with their credentials
-   * Sets up token refresh and caches user profile on success
+   * Sets up token refresh and caches user profile from JWT
    * 
    * @param {LoginDto} loginDto - Login credentials
-   * @returns {Promise<LoginResponse>} Login response with tokens and user data
+   * @returns {Promise<LoginResponse>} Login response with tokens
    * @throws {Error} If authentication fails
    */
   async login(loginDto: LoginDto): Promise<LoginResponse> {
     try {
       const response = await this.client.auth.authControllerLogin(loginDto) as unknown as AxiosResponse<LoginResponse>;
-      const data = response.data;
-      this.client.setAccessToken(data.access_token);
-      this.setupRefreshToken(data.expires_in);
+      const { access_token, expires_in } = response.data;
       
-      // Store the user profile from the login response
-      this.currentUser = {
-        id: data.id,
-        nameEn: data.nameEn,
-        nameAr: data.nameAr,
-        accountStatus: data.accountStatus,
-      };
+      // Set the access token
+      this.client.setAccessToken(access_token);
       
-      return data;
+      // Extract user data from JWT payload
+      const payload = this.jwtService.decodeToken(access_token);
+      this.currentUser = this.extractUserFromPayload(payload);
+      
+      // Setup token refresh
+      this.setupRefreshToken(expires_in);
+      
+      return response.data;
     } catch (error) {
       this.handleError(error);
       throw error;
@@ -145,17 +149,26 @@ export class AuthService extends BaseService {
   }
 
   /**
-   * Retrieves the current user's profile data
-   * Returns cached profile data if available, null if not logged in
+   * Retrieves the current user's profile data from JWT payload
+   * Returns null if not logged in or token is invalid
    * 
    * @returns {Promise<ProfileResponse | null>} Current user's profile or null
    */
   async getCurrentUser(): Promise<ProfileResponse | null> {
     try {
-      if (!this.currentUser) {
-        return null;
+      // If we have cached user data, return it
+      if (this.currentUser) {
+        return this.currentUser;
       }
-      return this.currentUser;
+
+      // Try to get user data from JWT payload
+      const payload = this.jwtService.getCurrentPayload();
+      if (payload) {
+        this.currentUser = this.extractUserFromPayload(payload);
+        return this.currentUser;
+      }
+
+      return null;
     } catch (error) {
       this.handleError(error);
       return null;
@@ -181,9 +194,9 @@ export class AuthService extends BaseService {
 
   /**
    * Refreshes the access token before it expires
-   * Updates cached user profile if new data is available
+   * Updates user data from new JWT payload
    * 
-   * @returns {Promise<LoginResponse>} New tokens and user data
+   * @returns {Promise<LoginResponse>} New tokens
    * @throws {Error} If refresh fails
    * @private
    */
@@ -192,21 +205,16 @@ export class AuthService extends BaseService {
       const response = await this.client.auth.authControllerRefresh({
         refresh_token: 'dummy', // The actual token is sent via cookie
       }) as unknown as AxiosResponse<LoginResponse>;
-      const data = response.data;
-      this.client.setAccessToken(data.access_token);
-      this.setupRefreshToken(data.expires_in);
       
-      // Update the user profile from the refresh response
-      if (data.id) {
-        this.currentUser = {
-          id: data.id,
-          nameEn: data.nameEn,
-          nameAr: data.nameAr,
-          accountStatus: data.accountStatus,
-        };
-      }
+      const { access_token, expires_in } = response.data;
+      this.client.setAccessToken(access_token);
       
-      return data;
+      // Extract user data from new JWT payload
+      const payload = this.jwtService.decodeToken(access_token);
+      this.currentUser = this.extractUserFromPayload(payload);
+      
+      this.setupRefreshToken(expires_in);
+      return response.data;
     } catch (error) {
       this.handleError(error);
       this.handleRefreshFailure();
@@ -223,7 +231,6 @@ export class AuthService extends BaseService {
     this.client.setAccessToken(null);
     this.clearRefreshTokenTimeout();
     this.currentUser = null;
-    // Redirect to login or show session expired message
   }
 
   /**

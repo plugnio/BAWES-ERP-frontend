@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 
@@ -29,9 +29,16 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, user, isLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.replace('/dashboard');
+    }
+  }, [isLoading, user, router]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -43,16 +50,30 @@ export function LoginForm() {
 
   const onSubmit = async (values: LoginFormValues) => {
     try {
-      setIsLoading(true);
+      setIsSubmitting(true);
       setError(null);
       await login(values.email, values.password);
-      router.push('/dashboard');
+      // No need to redirect here, the useEffect will handle it
     } catch (error) {
       setError('Invalid email or password');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[200px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Don't show form if already authenticated
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -81,7 +102,7 @@ export function LoginForm() {
                   <Input
                     placeholder="m@example.com"
                     type="email"
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                     {...field}
                   />
                 </FormControl>
@@ -99,7 +120,7 @@ export function LoginForm() {
                   <Input
                     placeholder="Enter your password"
                     type="password"
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                     {...field}
                   />
                 </FormControl>
@@ -110,9 +131,9 @@ export function LoginForm() {
           <Button
             type="submit"
             className="w-full"
-            disabled={isLoading}
+            disabled={isSubmitting}
           >
-            {isLoading ? 'Signing in...' : 'Sign in'}
+            {isSubmitting ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
       </Form>
@@ -129,4 +150,4 @@ export function LoginForm() {
       </div>
     </div>
   );
-} 
+}

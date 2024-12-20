@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks';
 import { LoadingSpinner } from '@/components/shared';
 
@@ -11,13 +11,15 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const pathname = usePathname();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isLoading && !user) {
+      sessionStorage.setItem('redirectUrl', pathname);
       router.replace('/auth/login');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, user, router, pathname]);
 
   if (isLoading) {
     return (
@@ -27,7 +29,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!user) {
     return null;
   }
 

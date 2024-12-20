@@ -15,8 +15,10 @@ import { useAuth } from '@/hooks';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface User {
-  name: string;
-  email: string;
+  id: string;
+  nameEn: string;
+  nameAr: string;
+  accountStatus: string;
 }
 
 export function UserNav() {
@@ -32,11 +34,13 @@ export function UserNav() {
     return null;
   }
 
-  const initials = user.name
-    .split(' ')
-    .map((n: string) => n[0])
-    .join('')
-    .toUpperCase();
+  const initials = user.nameEn
+    ? user.nameEn
+        .split(' ')
+        .map((n: string) => n[0])
+        .join('')
+        .toUpperCase()
+    : 'U';
 
   return (
     <DropdownMenu>
@@ -50,9 +54,9 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-sm font-medium leading-none">{user.nameEn || 'User'}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {user.nameAr || ''}
             </p>
           </div>
         </DropdownMenuLabel>
