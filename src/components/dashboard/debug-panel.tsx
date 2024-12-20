@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useServices } from '@/hooks';
 import Cookies from 'js-cookie';
 
 // Remove the strict interface to allow any token fields
@@ -13,9 +14,21 @@ interface DecodedToken {
 }
 
 export function DebugPanel() {
+  const { auth } = useServices();
   const [token, setToken] = useState<string | null>(null);
   const [decodedToken, setDecodedToken] = useState<DecodedToken | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+
+  const decodeToken = (accessToken: string) => {
+    try {
+      const [, payload] = accessToken.split('.');
+      const decodedPayload = JSON.parse(atob(payload));
+      return decodedPayload;
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return null;
+    }
+  };
 
   useEffect(() => {
     // Get token from cookies
@@ -23,43 +36,20 @@ export function DebugPanel() {
     setToken(accessToken || null);
 
     if (accessToken) {
-      try {
-        // Decode JWT without verification
-        const base64Url = accessToken.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          atob(base64)
-            .split('')
-            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-            .join('')
-        );
-        setDecodedToken(JSON.parse(jsonPayload));
-      } catch (error) {
-        console.error('Error decoding token:', error);
-      }
+      const decoded = decodeToken(accessToken);
+      setDecodedToken(decoded);
     }
   }, []);
 
-  // Update token and decoded token when cookies change
+  // Update token and decoded token when auth state changes
   useEffect(() => {
     const checkToken = () => {
       const accessToken = Cookies.get('accessToken');
       if (accessToken !== token) {
         setToken(accessToken || null);
         if (accessToken) {
-          try {
-            const base64Url = accessToken.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(
-              atob(base64)
-                .split('')
-                .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                .join('')
-            );
-            setDecodedToken(JSON.parse(jsonPayload));
-          } catch (error) {
-            console.error('Error decoding token:', error);
-          }
+          const decoded = decodeToken(accessToken);
+          setDecodedToken(decoded);
         } else {
           setDecodedToken(null);
         }
