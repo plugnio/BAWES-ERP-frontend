@@ -6,62 +6,98 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useServices } from '@/hooks';
-import { getApiClient } from '@/lib/sdk/api';
 
-// Remove the strict interface to allow any token fields
-interface DecodedToken {
-  [key: string]: any;
+interface TokenState {
+  hasToken: boolean;
+  tokenLength: number;
+  timeToExpiry: number;
+  token: string | null;
+  payload: any | null;
 }
 
 export function DebugPanel() {
-  const [token, setToken] = useState<string | null>(null);
-  const [decodedToken, setDecodedToken] = useState<DecodedToken | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const { jwt, auth } = useServices();
+  const [tokenState, setTokenState] = useState<TokenState>({
+    hasToken: false,
+    tokenLength: 0,
+    timeToExpiry: 0,
+    token: null,
+    payload: null
+  });
   const [isOpen, setIsOpen] = useState(false);
-  const apiClient = getApiClient();
 
-  // Update token and decoded token on mount and token changes
   useEffect(() => {
+    let mounted = true;
+    
+    // Update token state when component mounts or token changes
     const updateTokenState = () => {
-      const currentToken = apiClient.getAccessToken();
-      setToken(currentToken);
-      if (currentToken) {
-        const payload = apiClient.getTokenPayload();
-        setDecodedToken(payload);
-      } else {
-        setDecodedToken(null);
+      if (!mounted) return;
+
+      // Get current token state from JWT service
+      const payload = jwt.getCurrentPayload();
+      
+      // Handle no payload case (includes no token case)
+      if (!payload) {
+        setTokenState(state => {
+          if (!state.hasToken) return state; // No change needed
+          return {
+            hasToken: false,
+            tokenLength: 0,
+            timeToExpiry: 0,
+            token: null,
+            payload: null
+          };
+        });
+        return;
       }
+
+      // Calculate time remaining
+      const currentTime = Math.floor(Date.now() / 1000);
+      const timeToExpiry = payload.exp - currentTime;
+
+      // Update state only if something changed
+      setTokenState(state => {
+        // Check if any values actually changed
+        if (
+          state.timeToExpiry === timeToExpiry &&
+          state.payload === payload
+        ) {
+          return state; // No change needed
+        }
+
+        // Something changed, update state
+        return {
+          hasToken: true,
+          tokenLength: payload.token?.length || 0,
+          timeToExpiry,
+          token: payload.token,
+          payload
+        };
+      });
     };
 
-    // Initial update
+    // Subscribe to token changes through auth service
+    const unsubscribe = auth.onTokenChange(() => {
+      if (mounted) {
+        updateTokenState();
+      }
+    });
+
+    // Initial state update
     updateTokenState();
 
-    // Subscribe to token changes
-    const unsubscribe = apiClient.onTokenChange(() => updateTokenState());
-    return unsubscribe;
-  }, []);
-
-  // Update time remaining display
-  useEffect(() => {
-    if (!decodedToken?.exp) return;
-
-    const updateTimeRemaining = () => {
-      setTimeRemaining(decodedToken.exp * 1000 - Date.now());
+    // Cleanup
+    return () => {
+      mounted = false;
+      unsubscribe();
     };
+  }, [jwt, auth]); // Dependencies on services
 
-    // Update immediately
-    updateTimeRemaining();
-
-    // Update every second
-    const interval = setInterval(updateTimeRemaining, 1000);
-    return () => clearInterval(interval);
-  }, [decodedToken]);
-
-  if (!token || !decodedToken) {
+  if (!tokenState.hasToken) {
     return null;
   }
 
-  const minutesRemaining = Math.floor(timeRemaining / 1000 / 60);
+  const minutesRemaining = Math.floor(tokenState.timeToExpiry / 60);
 
   return (
     <Collapsible
@@ -85,37 +121,36 @@ export function DebugPanel() {
       </CollapsibleTrigger>
       <CollapsibleContent className="p-4 border-t border-border">
         <Card className="p-4 space-y-6 bg-card text-card-foreground">
-          {decodedToken.permissions && decodedToken.permissions.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Permissions</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {decodedToken.permissions.map((permission: string) => (
-                  <Badge key={permission} variant="secondary" className="text-xs">
-                    {permission}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
           <div className="space-y-2">
             <h4 className="text-sm font-semibold">Token Details</h4>
             <div className="space-y-3">
-              {Object.entries(decodedToken).map(([key, value]) => (
-                <div key={key} className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">{key}</p>
-                  <pre className="text-xs p-2 rounded-md bg-muted/50 overflow-auto">
-                    {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-                  </pre>
-                </div>
-              ))}
+              {Object.entries(tokenState).map(([key, value]) => {
+                if (key === 'token' || key === 'payload') return null;
+                return (
+                  <div key={key} className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">{key}</p>
+                    <pre className="text-xs p-2 rounded-md bg-muted/50 overflow-auto">
+                      {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                    </pre>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div className="space-y-2">
             <h4 className="text-sm font-semibold">Bearer Token</h4>
             <pre className="text-xs p-2 rounded-md bg-muted/50 overflow-auto break-all whitespace-pre-wrap">
-              Bearer {token}
+              Bearer {tokenState.token || ''}
             </pre>
           </div>
+          {tokenState.payload && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold">Decoded Payload</h4>
+              <pre className="text-xs p-2 rounded-md bg-muted/50 overflow-auto">
+                {JSON.stringify(tokenState.payload, null, 2)}
+              </pre>
+            </div>
+          )}
         </Card>
       </CollapsibleContent>
     </Collapsible>

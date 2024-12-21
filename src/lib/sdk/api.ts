@@ -46,7 +46,11 @@ class ApiClient {
   readonly roles: RoleManagementApi;
 
   private constructor() {
-    debugLog('ApiClient: Initializing');
+    debugLog('ApiClient: Initializing', {
+      action: 'init',
+      timestamp: new Date().toISOString()
+    });
+    
     this.configuration = createConfiguration();
 
     // Initialize API instances
@@ -143,7 +147,9 @@ class ApiClient {
    */
   async refreshToken(): Promise<TokenResponse> {
     try {
-      debugLog('ApiClient: Starting token refresh');
+      debugLog('ApiClient: Starting token refresh', {
+        action: 'refresh_start'
+      });
 
       const response = await this.auth.authControllerRefresh({
         refresh_token: 'dummy', // The actual token is sent via cookie
@@ -152,10 +158,18 @@ class ApiClient {
       // Cast response data to TokenResponse
       const tokenResponse = response.data as unknown as TokenResponse;
       this.handleTokenResponse(tokenResponse);
-      debugLog('ApiClient: Token refresh successful');
+      
+      debugLog('ApiClient: Token refresh successful', {
+        action: 'refresh_success',
+        expiresIn: tokenResponse.expires_in
+      });
+      
       return tokenResponse;
     } catch (error) {
-      debugLog('ApiClient: Token refresh failed');
+      debugLog('ApiClient: Token refresh failed', {
+        error,
+        action: 'refresh_error'
+      });
       this.handleRefreshFailure();
       throw error;
     }
@@ -169,12 +183,17 @@ class ApiClient {
   getTokenPayload(): any | null {
     // Return cached payload if available
     if (this.tokenPayload) {
+      debugLog('ApiClient: Using cached payload', {
+        action: 'get_payload_cached'
+      });
       return this.tokenPayload;
     }
 
     const token = this.getAccessToken();
     if (!token) {
-      debugLog('ApiClient: No token available for payload');
+      debugLog('ApiClient: No token available for payload', {
+        action: 'get_payload_no_token'
+      });
       return null;
     }
 
@@ -187,6 +206,7 @@ class ApiClient {
       const timeToExpiry = payload.exp - currentTime;
       
       const info = {
+        action: 'check_payload',
         exp: payload.exp,
         currentTime,
         timeToExpiry,
@@ -195,8 +215,9 @@ class ApiClient {
       debugLog('ApiClient: Token payload check', info);
 
       if (payload.exp <= currentTime) {
-        debugLog('ApiClient: Token is expired, triggering refresh');
-        this.handleRefreshFailure();
+        debugLog('ApiClient: Token is expired', {
+          action: 'token_expired'
+        });
         return null;
       }
 
@@ -204,7 +225,10 @@ class ApiClient {
       this.tokenPayload = payload;
       return payload;
     } catch (error) {
-      debugLog('ApiClient: Failed to decode token payload', { error });
+      debugLog('ApiClient: Failed to decode token payload', {
+        error,
+        action: 'decode_error'
+      });
       return null;
     }
   }

@@ -2,6 +2,7 @@ import { BaseService } from './base.service';
 import { AuthService } from './auth.service';
 import { PeopleService } from './people.service';
 import { PermissionsService } from './permissions.service';
+import { JwtService } from './jwt.service';
 
 /**
  * Interface defining all available services in the application
@@ -16,6 +17,8 @@ export interface Services {
   people: PeopleService;
   /** Permissions and role management service */
   permissions: PermissionsService;
+  /** JWT token management service */
+  jwt: JwtService;
 }
 
 /**
@@ -40,6 +43,8 @@ class ServiceRegistry {
   readonly people: PeopleService;
   /** Permissions management service instance */
   readonly permissions: PermissionsService;
+  /** JWT token management service instance */
+  readonly jwt: JwtService;
 
   /**
    * Private constructor to prevent direct instantiation
@@ -47,6 +52,7 @@ class ServiceRegistry {
    * @private
    */
   private constructor() {
+    this.jwt = new JwtService();
     this.auth = new AuthService();
     this.people = new PeopleService();
     this.permissions = new PermissionsService();

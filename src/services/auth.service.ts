@@ -39,6 +39,25 @@ export interface ProfileResponse {
 export class AuthService extends BaseService {
   /** Cached user profile data */
   private currentUser: ProfileResponse | null = null;
+  private tokenChangeListeners: Set<() => void> = new Set();
+
+  /**
+   * Subscribes to token changes
+   * @param callback Function to call when token changes
+   * @returns Function to unsubscribe
+   */
+  onTokenChange(callback: () => void): () => void {
+    this.tokenChangeListeners.add(callback);
+    return () => this.tokenChangeListeners.delete(callback);
+  }
+
+  /**
+   * Notifies listeners of token changes
+   * @private
+   */
+  private notifyTokenChange() {
+    this.tokenChangeListeners.forEach(listener => listener());
+  }
 
   /**
    * Extracts user profile from JWT payload
@@ -78,6 +97,9 @@ export class AuthService extends BaseService {
       if (payload) {
         this.currentUser = this.extractUserFromPayload(payload);
       }
+
+      // Notify listeners of token change
+      this.notifyTokenChange();
       
       return response.data;
     } catch (error) {
@@ -131,6 +153,9 @@ export class AuthService extends BaseService {
       });
       this.client.reset(); // Reset the API client state
       this.currentUser = null;
+      
+      // Notify listeners of token change
+      this.notifyTokenChange();
     } catch (error) {
       this.handleError(error);
       throw error;
