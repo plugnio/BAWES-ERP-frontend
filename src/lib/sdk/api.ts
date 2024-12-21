@@ -127,6 +127,15 @@ class ApiClient {
   }
 
   /**
+   * Sets up the access token and refresh timer
+   * @param {TokenResponse} response - The token response from auth endpoint
+   */
+  handleTokenResponse(response: TokenResponse) {
+    this.setAccessToken(response.access_token);
+    this.setupRefreshToken(response.expires_in);
+  }
+
+  /**
    * Attempts to refresh the access token
    * Uses the refresh token stored in cookies
    * @returns {Promise<TokenResponse>} New token response
@@ -142,8 +151,7 @@ class ApiClient {
 
       // Cast response data to TokenResponse
       const tokenResponse = response.data as unknown as TokenResponse;
-      this.setAccessToken(tokenResponse.access_token);
-      this.setupRefreshToken(tokenResponse.expires_in);
+      this.handleTokenResponse(tokenResponse);
       debugLog('ApiClient: Token refresh successful');
       return tokenResponse;
     } catch (error) {
@@ -241,6 +249,16 @@ class ApiClient {
     this.setAccessToken(null);
     this.clearRefreshTokenTimeout();
     this.tokenChangeListeners.clear(); // Clear all listeners on reset
+  }
+
+  /**
+   * Sets up the access token and refresh timer
+   * @param {string} token - The access token to set
+   * @param {number} expiresIn - Token expiration time in seconds
+   */
+  setupToken(token: string, expiresIn: number) {
+    this.setAccessToken(token);
+    this.setupRefreshToken(expiresIn);
   }
 }
 

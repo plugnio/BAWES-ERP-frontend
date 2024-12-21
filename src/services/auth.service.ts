@@ -70,9 +70,8 @@ export class AuthService extends BaseService {
       const response = await this.client.auth.authControllerLogin(loginDto) as unknown as AxiosResponse<LoginResponse>;
       const { access_token, expires_in } = response.data;
       
-      // Set access token and setup refresh in SDK
-      this.client.setAccessToken(access_token);
-      this.client.setupRefreshToken(expires_in);
+      // Set up token and refresh timer
+      this.client.handleTokenResponse(response.data);
       
       // Extract user data from JWT payload
       const payload = this.client.getTokenPayload();
