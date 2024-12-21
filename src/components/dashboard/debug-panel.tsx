@@ -17,45 +17,56 @@ export function DebugPanel() {
   const { auth } = useServices();
   const [token, setToken] = useState<string | null>(null);
   const [decodedToken, setDecodedToken] = useState<DecodedToken | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isOpen, setIsOpen] = useState(false);
   const jwtService = new JwtService();
 
+  // Update token and decoded token on mount and token changes
   useEffect(() => {
-    // Get token from the JWT service
-    const accessToken = jwtService.getCurrentToken();
-    setToken(accessToken);
-
-    if (accessToken) {
-      const decoded = jwtService.decodeToken(accessToken);
-      setDecodedToken(decoded);
-    }
-  }, []);
-
-  // Update token and decoded token when auth state changes
-  useEffect(() => {
-    const checkToken = () => {
+    const updateTokenState = () => {
       const accessToken = jwtService.getCurrentToken();
-      if (accessToken !== token) {
-        setToken(accessToken);
-        if (accessToken) {
-          const decoded = jwtService.decodeToken(accessToken);
-          setDecodedToken(decoded);
-        } else {
-          setDecodedToken(null);
-        }
+      setToken(accessToken);
+      if (accessToken) {
+        const decoded = jwtService.decodeToken(accessToken);
+        setDecodedToken(decoded);
+      } else {
+        setDecodedToken(null);
       }
     };
 
-    // Check every second for token changes
-    const interval = setInterval(checkToken, 1000);
+    // Initial update
+    updateTokenState();
+
+    // Listen for token changes
+    window.addEventListener('storage', updateTokenState);
+    document.addEventListener('visibilitychange', updateTokenState);
+
+    return () => {
+      window.removeEventListener('storage', updateTokenState);
+      document.removeEventListener('visibilitychange', updateTokenState);
+    };
+  }, []);
+
+  // Update time remaining display
+  useEffect(() => {
+    if (!decodedToken?.exp) return;
+
+    const updateTimeRemaining = () => {
+      setTimeRemaining(decodedToken.exp * 1000 - Date.now());
+    };
+
+    // Update immediately
+    updateTimeRemaining();
+
+    // Update every second
+    const interval = setInterval(updateTimeRemaining, 1000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [decodedToken]);
 
   if (!token || !decodedToken) {
     return null;
   }
 
-  const timeRemaining = decodedToken.exp * 1000 - Date.now();
   const minutesRemaining = Math.floor(timeRemaining / 1000 / 60);
 
   return (

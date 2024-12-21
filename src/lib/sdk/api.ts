@@ -6,6 +6,7 @@ import {
   RoleManagementApi,
 } from '@bawes/erp-api-sdk';
 import { SDK_CONFIG, createConfiguration } from './config';
+import { debugLog } from '@/lib/debug';
 
 /**
  * Response structure for authentication token operations
@@ -38,6 +39,7 @@ class ApiClient {
   readonly roles: RoleManagementApi;
 
   private constructor() {
+    debugLog('ApiClient: Initializing');
     this.configuration = createConfiguration();
 
     // Initialize API instances
@@ -64,6 +66,7 @@ class ApiClient {
    * @param {string | null} token - The access token or null to clear
    */
   setAccessToken(token: string | null) {
+    debugLog(`ApiClient: Setting access token - hasToken: ${!!token}, tokenLength: ${token?.length || 0}`);
     this.accessToken = token;
   }
 
@@ -72,18 +75,8 @@ class ApiClient {
    * @returns {string | null} The current access token or null if not set
    */
   getAccessToken(): string | null {
+    debugLog(`ApiClient: Getting access token - hasToken: ${!!this.accessToken}, tokenLength: ${this.accessToken?.length || 0}`);
     return this.accessToken;
-  }
-
-  /**
-   * Checks if a valid refresh token cookie exists
-   * @returns {boolean} True if a valid refresh token cookie exists
-   * @private
-   */
-  private hasValidRefreshToken(): boolean {
-    const cookies = document.cookie.split(';');
-    const refreshCookie = cookies.find(cookie => cookie.trim().startsWith(`${this.REFRESH_TOKEN_COOKIE}=`));
-    return !!refreshCookie && refreshCookie.trim() !== `${this.REFRESH_TOKEN_COOKIE}=`;
   }
 
   /**
@@ -92,10 +85,13 @@ class ApiClient {
    * @param {number} expiresIn - Token expiration time in seconds
    */
   setupRefreshToken(expiresIn: number) {
+    debugLog(`ApiClient: Setting up token refresh - expiresIn: ${expiresIn}, refreshThreshold: ${SDK_CONFIG.refreshThreshold}, refreshIn: ${(expiresIn * 1000) - SDK_CONFIG.refreshThreshold}`);
+
     this.clearRefreshTokenTimeout();
     const timeout = (expiresIn * 1000) - SDK_CONFIG.refreshThreshold;
     
     this.refreshTokenTimeout = setTimeout(() => {
+      debugLog('ApiClient: Refresh timeout triggered, attempting refresh');
       this.refreshToken().catch((error) => {
         console.error('Token refresh failed:', error);
         this.handleRefreshFailure();
@@ -111,33 +107,20 @@ class ApiClient {
    */
   async refreshToken(): Promise<TokenResponse> {
     try {
-      // Only attempt refresh if we have a valid refresh token cookie
-      if (!this.hasValidRefreshToken()) {
-        throw new Error('No valid refresh token');
-      }
+      debugLog('ApiClient: Starting token refresh');
 
       const response = await this.auth.authControllerRefresh({
         refresh_token: 'dummy', // The actual token is sent via cookie
       });
 
-      // Type guard to ensure response has the expected structure
-      const data = response.data as unknown;
-      if (
-        typeof data === 'object' &&
-        data !== null &&
-        'access_token' in data &&
-        'expires_in' in data &&
-        typeof data.access_token === 'string' &&
-        typeof data.expires_in === 'number'
-      ) {
-        const tokenResponse = data as TokenResponse;
-        this.setAccessToken(tokenResponse.access_token);
-        this.setupRefreshToken(tokenResponse.expires_in);
-        return tokenResponse;
-      }
-
-      throw new Error('Invalid token response format');
+      // Cast response data to TokenResponse
+      const tokenResponse = response.data as unknown as TokenResponse;
+      this.setAccessToken(tokenResponse.access_token);
+      this.setupRefreshToken(tokenResponse.expires_in);
+      debugLog('ApiClient: Token refresh successful');
+      return tokenResponse;
     } catch (error) {
+      debugLog('ApiClient: Token refresh failed');
       this.handleRefreshFailure();
       throw error;
     }
@@ -149,7 +132,10 @@ class ApiClient {
    */
   getTokenPayload(): any | null {
     const token = this.getAccessToken();
-    if (!token) return null;
+    if (!token) {
+      debugLog('ApiClient: No token available for payload');
+      return null;
+    }
 
     try {
       const base64Payload = token.split('.')[1];
@@ -157,13 +143,19 @@ class ApiClient {
       
       // Check if token is expired
       const currentTime = Math.floor(Date.now() / 1000);
+      const timeToExpiry = payload.exp - currentTime;
+      
+      debugLog(`ApiClient: Token payload check - exp: ${payload.exp}, currentTime: ${currentTime}, timeToExpiry: ${timeToExpiry}, isExpired: ${payload.exp <= currentTime}`);
+
       if (payload.exp <= currentTime) {
+        debugLog('ApiClient: Token is expired, triggering refresh');
         this.handleRefreshFailure();
         return null;
       }
 
       return payload;
-    } catch {
+    } catch (error) {
+      debugLog(`ApiClient: Failed to decode token payload - ${error}`);
       return null;
     }
   }
@@ -174,9 +166,9 @@ class ApiClient {
    * Allows auth hook to handle redirect to login
    */
   private handleRefreshFailure() {
+    debugLog('ApiClient: Handling refresh failure');
     this.setAccessToken(null);
     this.clearRefreshTokenTimeout();
-    // Redirect to login will be handled by the auth hook
   }
 
   /**
@@ -184,6 +176,7 @@ class ApiClient {
    */
   private clearRefreshTokenTimeout() {
     if (this.refreshTokenTimeout) {
+      debugLog('ApiClient: Clearing refresh timeout');
       clearTimeout(this.refreshTokenTimeout);
     }
   }
@@ -193,6 +186,7 @@ class ApiClient {
    * Clears the access token and refresh timeout
    */
   reset() {
+    debugLog('ApiClient: Resetting client state');
     this.accessToken = null;
     this.clearRefreshTokenTimeout();
   }
