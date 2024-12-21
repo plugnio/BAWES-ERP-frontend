@@ -33,11 +33,11 @@ export function DebugPanel() {
     const updateTokenState = () => {
       if (!mounted) return;
 
-      // Get current token state from JWT service
-      const payload = jwt.getCurrentPayload();
+      // Get complete token state from JWT service
+      const { token, payload, timeToExpiry } = jwt.getTokenState();
       
-      // Handle no payload case (includes no token case)
-      if (!payload) {
+      // Handle no token case
+      if (!token || !payload) {
         setTokenState(state => {
           if (!state.hasToken) return state; // No change needed
           return {
@@ -51,14 +51,11 @@ export function DebugPanel() {
         return;
       }
 
-      // Calculate time remaining
-      const currentTime = Math.floor(Date.now() / 1000);
-      const timeToExpiry = payload.exp - currentTime;
-
       // Update state only if something changed
       setTokenState(state => {
         // Check if any values actually changed
         if (
+          state.token === token &&
           state.timeToExpiry === timeToExpiry &&
           state.payload === payload
         ) {
@@ -68,9 +65,9 @@ export function DebugPanel() {
         // Something changed, update state
         return {
           hasToken: true,
-          tokenLength: payload.token?.length || 0,
+          tokenLength: token.length,
           timeToExpiry,
-          token: payload.token,
+          token,
           payload
         };
       });

@@ -73,4 +73,21 @@ export class JwtService extends BaseService {
       return null;
     }
   }
+
+  /**
+   * Gets the complete token state including payload and expiry
+   * @returns {{ token: string | null, payload: JwtPayload | null, timeToExpiry: number }} Token state
+   */
+  getTokenState() {
+    const token = this.client.getAccessToken();
+    const payload = this.getCurrentPayload();
+    const currentTime = Math.floor(Date.now() / 1000);
+    const timeToExpiry = payload ? payload.exp - currentTime : 0;
+
+    return {
+      token,
+      payload,
+      timeToExpiry
+    };
+  }
 } 
