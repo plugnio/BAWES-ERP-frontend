@@ -10,6 +10,7 @@ export const DEBUG_CONFIG = {
  */
 export const debugLog = (message: string, ...data: unknown[]) => {
   if (DEBUG_CONFIG.isEnabled) {
-    console.warn(`[DEBUG] ${message}`, ...data);
+    // Use console.log instead of console.warn to avoid stack traces
+    console.log(`[DEBUG] ${message}`, ...data);
   }
 }; 

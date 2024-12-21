@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useServices } from '@/hooks';
-import { JwtService } from '@/services/jwt.service';
+import { getApiClient } from '@/lib/sdk/api';
 
 // Remove the strict interface to allow any token fields
 interface DecodedToken {
@@ -14,21 +14,20 @@ interface DecodedToken {
 }
 
 export function DebugPanel() {
-  const { auth } = useServices();
   const [token, setToken] = useState<string | null>(null);
   const [decodedToken, setDecodedToken] = useState<DecodedToken | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isOpen, setIsOpen] = useState(false);
-  const jwtService = new JwtService();
+  const apiClient = getApiClient();
 
   // Update token and decoded token on mount and token changes
   useEffect(() => {
     const updateTokenState = () => {
-      const accessToken = jwtService.getCurrentToken();
-      setToken(accessToken);
-      if (accessToken) {
-        const decoded = jwtService.decodeToken(accessToken);
-        setDecodedToken(decoded);
+      const currentToken = apiClient.getAccessToken();
+      setToken(currentToken);
+      if (currentToken) {
+        const payload = apiClient.getTokenPayload();
+        setDecodedToken(payload);
       } else {
         setDecodedToken(null);
       }
@@ -37,14 +36,9 @@ export function DebugPanel() {
     // Initial update
     updateTokenState();
 
-    // Listen for token changes
-    window.addEventListener('storage', updateTokenState);
-    document.addEventListener('visibilitychange', updateTokenState);
-
-    return () => {
-      window.removeEventListener('storage', updateTokenState);
-      document.removeEventListener('visibilitychange', updateTokenState);
-    };
+    // Subscribe to token changes
+    const unsubscribe = apiClient.onTokenChange(() => updateTokenState());
+    return unsubscribe;
   }, []);
 
   // Update time remaining display

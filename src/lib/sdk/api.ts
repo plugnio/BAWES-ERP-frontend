@@ -19,6 +19,11 @@ interface TokenResponse {
 }
 
 /**
+ * Token state change event name
+ */
+const TOKEN_CHANGE_EVENT = 'token-change';
+
+/**
  * Singleton client for managing API communication and authentication
  * Handles token management, automatic refresh, and provides access to API endpoints
  */
@@ -28,6 +33,8 @@ class ApiClient {
   private accessToken: string | null = null;
   private refreshTokenTimeout?: NodeJS.Timeout;
   private readonly REFRESH_TOKEN_COOKIE = 'refresh_token';
+  private tokenPayload: any | null = null;
+  private tokenChangeListeners: Set<(hasToken: boolean) => void> = new Set();
 
   /** Authentication API instance */
   readonly auth: AuthenticationApi;
@@ -62,12 +69,22 @@ class ApiClient {
   }
 
   /**
-   * Sets the current access token for API requests
+   * Sets the current access token and updates token state
    * @param {string | null} token - The access token or null to clear
    */
   setAccessToken(token: string | null) {
-    debugLog(`ApiClient: Setting access token - hasToken: ${!!token}, tokenLength: ${token?.length || 0}`);
+    const info = {
+      hasToken: !!token,
+      tokenLength: token?.length || 0
+    };
+    debugLog('ApiClient: Setting access token', info);
+    
     this.accessToken = token;
+    this.tokenPayload = null; // Clear cached payload
+    
+    // Notify all listeners
+    const hasToken = !!token;
+    this.tokenChangeListeners.forEach(listener => listener(hasToken));
   }
 
   /**
@@ -75,7 +92,12 @@ class ApiClient {
    * @returns {string | null} The current access token or null if not set
    */
   getAccessToken(): string | null {
-    debugLog(`ApiClient: Getting access token - hasToken: ${!!this.accessToken}, tokenLength: ${this.accessToken?.length || 0}`);
+    const info = {
+      hasToken: !!this.accessToken,
+      tokenLength: this.accessToken?.length || 0,
+      caller: new Error().stack?.split('\n')[2]?.trim() || 'unknown'
+    };
+    debugLog('ApiClient: Token access', info);
     return this.accessToken;
   }
 
@@ -84,8 +106,13 @@ class ApiClient {
    * Clears any existing refresh timeout before setting new one
    * @param {number} expiresIn - Token expiration time in seconds
    */
-  setupRefreshToken(expiresIn: number) {
-    debugLog(`ApiClient: Setting up token refresh - expiresIn: ${expiresIn}, refreshThreshold: ${SDK_CONFIG.refreshThreshold}, refreshIn: ${(expiresIn * 1000) - SDK_CONFIG.refreshThreshold}`);
+  private setupRefreshToken(expiresIn: number) {
+    const info = {
+      expiresIn,
+      refreshThreshold: SDK_CONFIG.refreshThreshold,
+      refreshIn: (expiresIn * 1000) - SDK_CONFIG.refreshThreshold
+    };
+    debugLog('ApiClient: Setting up token refresh', info);
 
     this.clearRefreshTokenTimeout();
     const timeout = (expiresIn * 1000) - SDK_CONFIG.refreshThreshold;
@@ -128,9 +155,15 @@ class ApiClient {
 
   /**
    * Gets the current token payload if valid
+   * Uses cached payload if available
    * @returns {any | null} The decoded token payload or null
    */
   getTokenPayload(): any | null {
+    // Return cached payload if available
+    if (this.tokenPayload) {
+      return this.tokenPayload;
+    }
+
     const token = this.getAccessToken();
     if (!token) {
       debugLog('ApiClient: No token available for payload');
@@ -145,7 +178,13 @@ class ApiClient {
       const currentTime = Math.floor(Date.now() / 1000);
       const timeToExpiry = payload.exp - currentTime;
       
-      debugLog(`ApiClient: Token payload check - exp: ${payload.exp}, currentTime: ${currentTime}, timeToExpiry: ${timeToExpiry}, isExpired: ${payload.exp <= currentTime}`);
+      const info = {
+        exp: payload.exp,
+        currentTime,
+        timeToExpiry,
+        isExpired: payload.exp <= currentTime
+      };
+      debugLog('ApiClient: Token payload check', info);
 
       if (payload.exp <= currentTime) {
         debugLog('ApiClient: Token is expired, triggering refresh');
@@ -153,11 +192,23 @@ class ApiClient {
         return null;
       }
 
+      // Cache valid payload
+      this.tokenPayload = payload;
       return payload;
     } catch (error) {
-      debugLog(`ApiClient: Failed to decode token payload - ${error}`);
+      debugLog('ApiClient: Failed to decode token payload', { error });
       return null;
     }
+  }
+
+  /**
+   * Subscribes to token changes
+   * @param callback Function to call when token changes
+   * @returns Function to unsubscribe
+   */
+  onTokenChange(callback: (hasToken: boolean) => void): () => void {
+    this.tokenChangeListeners.add(callback);
+    return () => this.tokenChangeListeners.delete(callback);
   }
 
   /**
@@ -187,8 +238,9 @@ class ApiClient {
    */
   reset() {
     debugLog('ApiClient: Resetting client state');
-    this.accessToken = null;
+    this.setAccessToken(null);
     this.clearRefreshTokenTimeout();
+    this.tokenChangeListeners.clear(); // Clear all listeners on reset
   }
 }
 
