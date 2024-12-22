@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useServices } from './use-services';
 import type { LoginResponse } from '@/services/auth.service';
+import { ServiceRegistry } from '@/services';
 
 /**
  * Represents a user in the system
@@ -52,10 +53,10 @@ export function useAuth(): UseAuthReturn {
   const [isLoading, setIsLoading] = useState(true);
 
   /**
-   * Fetches the current user's data from the authentication service
-   * Updates the user state and loading state based on the result
+   * Updates the user state from the authentication service
    */
-  const fetchUser = useCallback(async () => {
+  const updateUser = useCallback(async () => {
+    setIsLoading(true);
     try {
       const currentUser = await auth.getCurrentUser();
       setUser(currentUser);
@@ -70,45 +71,34 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     let mounted = true;
     let initialFetchDone = false;
-
-    const updateUser = async () => {
-      if (!mounted) return;
-      setIsLoading(true);
-      try {
-        const currentUser = await auth.getCurrentUser();
-        if (mounted) {
-          setUser(currentUser);
-        }
-      } catch (error) {
-        if (mounted) {
-          setUser(null);
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
+    let lastTokenState = false;
 
     // Subscribe to token changes
-    const unsubscribe = auth.onTokenChange(() => {
+    const unsubscribe = auth.onTokenChange((hasToken) => {
       // Skip token change updates until after initial fetch
-      if (!initialFetchDone) return;
-      if (mounted) {
+      if (!initialFetchDone || !mounted) return;
+      // Only update if token state actually changed
+      if (hasToken !== lastTokenState) {
+        lastTokenState = hasToken;
         updateUser();
       }
     });
     
     // Do initial fetch
     updateUser().then(() => {
-      initialFetchDone = true;
+      if (mounted) {
+        initialFetchDone = true;
+        // Set initial token state
+        const services = ServiceRegistry.getInstance();
+        lastTokenState = services.jwt.getTokenState().token !== null;
+      }
     });
     
     return () => {
       mounted = false;
       unsubscribe();
     };
-  }, [auth]);
+  }, [auth, updateUser]);
 
   /**
    * Authenticates a user with their email and password
@@ -118,7 +108,8 @@ export function useAuth(): UseAuthReturn {
    */
   const login = async (email: string, password: string) => {
     const response = await auth.login({ email, password });
-    await fetchUser();
+    // No need to fetch user as it's already cached in AuthService
+    setUser(await auth.getCurrentUser());
     return response;
   };
 

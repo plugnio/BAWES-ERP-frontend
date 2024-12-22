@@ -34,7 +34,7 @@ export interface Services {
  * const authService = services.auth;
  * ```
  */
-class ServiceRegistry {
+export class ServiceRegistry {
   private static instance: ServiceRegistry;
   
   /** Authentication service instance */

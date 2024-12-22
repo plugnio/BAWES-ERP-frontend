@@ -1,6 +1,7 @@
 import { BaseService } from './base.service';
 import type { LoginDto, RegisterDto, VerifyEmailDto } from '@bawes/erp-api-sdk';
 import type { AxiosResponse } from 'axios';
+import { ServiceRegistry } from './index';
 
 /**
  * Response interface for successful login
@@ -39,7 +40,6 @@ export interface ProfileResponse {
 export class AuthService extends BaseService {
   /** Cached user profile data */
   private currentUser: ProfileResponse | null = null;
-  private tokenChangeListeners: Set<() => void> = new Set();
   private refreshInProgress = false;
 
   /**
@@ -61,11 +61,13 @@ export class AuthService extends BaseService {
   }
 
   /**
-   * Notifies listeners of token changes
+   * Notifies JWT service of token changes
    * @private
    */
   private notifyTokenChange() {
-    this.tokenChangeListeners.forEach(listener => listener());
+    // Invalidate JWT service cache
+    const services = ServiceRegistry.getInstance();
+    services.jwt.invalidateCache();
   }
 
   /**
@@ -184,8 +186,10 @@ export class AuthService extends BaseService {
         return this.currentUser;
       }
 
-      // Check if we have a valid token
-      const payload = this.client.getTokenPayload();
+      // Get token state from JWT service
+      const services = ServiceRegistry.getInstance();
+      const { payload } = services.jwt.getTokenState();
+      
       if (payload) {
         this.currentUser = this.extractUserFromPayload(payload);
         return this.currentUser;
@@ -195,12 +199,14 @@ export class AuthService extends BaseService {
       if (!this.refreshInProgress) {
         this.refreshInProgress = true;
         try {
-          const response = await this.client.refreshToken();
-          const refreshedPayload = this.client.getTokenPayload();
-          if (refreshedPayload) {
+          await this.client.refreshToken();
+          // Get fresh token state after refresh
+          const { payload: refreshedPayload, token } = services.jwt.getTokenState();
+          if (token && refreshedPayload) {
             this.currentUser = this.extractUserFromPayload(refreshedPayload);
             return this.currentUser;
           }
+          this.currentUser = null;
         } catch {
           // If refresh fails, we're not authenticated
           this.currentUser = null;

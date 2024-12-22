@@ -26,6 +26,8 @@ interface JwtPayload {
  * Manages token decoding and validation
  */
 export class JwtService extends BaseService {
+  private cachedTokenState: { token: string | null; payload: JwtPayload | null; timeToExpiry: number } | null = null;
+
   /**
    * Decodes a JWT token and extracts the payload
    * @param {string} token - The JWT token to decode
@@ -76,28 +78,49 @@ export class JwtService extends BaseService {
 
   /**
    * Gets the complete token state including payload and expiry
+   * Uses cached state if available and valid
    * @returns {{ token: string | null, payload: JwtPayload | null, timeToExpiry: number }} Token state
    */
   getTokenState() {
+    // Return cached state if available
+    if (this.cachedTokenState) {
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (this.cachedTokenState.payload && this.cachedTokenState.payload.exp > currentTime) {
+        return this.cachedTokenState;
+      }
+    }
+
     const token = this.client.getAccessToken();
     if (!token) {
-      return { token: null, payload: null, timeToExpiry: 0 };
+      this.cachedTokenState = { token: null, payload: null, timeToExpiry: 0 };
+      return this.cachedTokenState;
     }
 
     try {
       const payload = this.decodeToken(token);
       if (this.isTokenExpired(payload)) {
-        return { token: null, payload: null, timeToExpiry: 0 };
+        this.cachedTokenState = { token: null, payload: null, timeToExpiry: 0 };
+        return this.cachedTokenState;
       }
       
-      return { 
+      this.cachedTokenState = { 
         token, 
         payload, 
         timeToExpiry: this.client.getTimeToExpiry()
       };
+      return this.cachedTokenState;
     } catch (error) {
       console.error('Get token state error:', error);
-      return { token: null, payload: null, timeToExpiry: 0 };
+      this.cachedTokenState = { token: null, payload: null, timeToExpiry: 0 };
+      return this.cachedTokenState;
     }
+  }
+
+  /**
+   * Invalidates the cached token state
+   * Should be called when token changes
+   */
+  invalidateCache() {
+    this.cachedTokenState = null;
   }
 } 
