@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { usePermissions } from '@/hooks';
 import { LoadingSpinner } from '@/components/shared';
@@ -9,9 +11,9 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { PermissionList } from './permission-list';
 
 interface PermissionDashboardProps {
   roleId?: string;
@@ -34,9 +36,9 @@ export function PermissionDashboard({
     updateRolePermissions,
   } = usePermissions();
 
-  const [selectedPermissions, setSelectedPermissions] = React.useState<Set<string>>(
-    new Set()
-  );
+  const [selectedPermissions, setSelectedPermissions] = React.useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     loadDashboard();
@@ -51,6 +53,8 @@ export function PermissionDashboard({
   React.useEffect(() => {
     if (currentRole) {
       setSelectedPermissions(new Set(currentRole.permissions));
+    } else {
+      setSelectedPermissions(new Set());
     }
   }, [currentRole]);
 
@@ -65,10 +69,48 @@ export function PermissionDashboard({
     onPermissionsChange?.(Array.from(newPermissions));
   };
 
+  const handleBulkSelect = (categoryId: string, selected: boolean) => {
+    const category = dashboard?.permissionCategories.find(c => c.id === categoryId);
+    if (!category) return;
+
+    const newPermissions = new Set(selectedPermissions);
+    category.permissions
+      .filter(p => !p.deprecated)
+      .forEach(permission => {
+        if (selected) {
+          newPermissions.add(permission.id);
+        } else {
+          newPermissions.delete(permission.id);
+        }
+      });
+
+    setSelectedPermissions(newPermissions);
+    onPermissionsChange?.(Array.from(newPermissions));
+  };
+
+  const handleSave = async () => {
+    if (!currentRole) return;
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+      await updateRolePermissions(currentRole.id, Array.from(selectedPermissions));
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save permissions');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const hasChanges = currentRole && !arePermissionsEqual(
+    currentRole.permissions,
+    Array.from(selectedPermissions)
+  );
+
   if (isLoading) {
     return (
       <div className="flex justify-center p-4">
-        <LoadingSpinner />
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -85,6 +127,8 @@ export function PermissionDashboard({
     return null;
   }
 
+  const isSystemRole = currentRole && ['SUPER_ADMIN', 'ADMIN', 'USER'].includes(currentRole.id);
+
   return (
     <Card className={className}>
       <CardHeader>
@@ -96,51 +140,49 @@ export function PermissionDashboard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[400px] pr-4">
-          <div className="space-y-6">
-            {dashboard.permissionCategories.map((category) => (
-              <div key={category.id} className="space-y-4">
-                <h3 className="font-medium text-lg">{category.name}</h3>
-                {category.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {category.description}
-                  </p>
-                )}
-                <div className="grid gap-4">
-                  {category.permissions.map((permission) => (
-                    <div
-                      key={permission.id}
-                      className="flex items-center space-x-3"
-                    >
-                      <Checkbox
-                        id={permission.id}
-                        checked={selectedPermissions.has(permission.id)}
-                        onCheckedChange={() =>
-                          handlePermissionToggle(permission.id)
-                        }
-                        disabled={!currentRole}
-                      />
-                      <div className="space-y-1">
-                        <label
-                          htmlFor={permission.id}
-                          className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {permission.name}
-                        </label>
-                        {permission.description && (
-                          <p className="text-sm text-muted-foreground">
-                            {permission.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
+        <PermissionList
+          categories={dashboard.permissionCategories}
+          selectedPermissions={selectedPermissions}
+          onPermissionToggle={handlePermissionToggle}
+          onBulkSelect={handleBulkSelect}
+          disabled={!currentRole || isSystemRole || isSaving}
+        />
       </CardContent>
+      {currentRole && (
+        <CardFooter className="flex justify-between items-center">
+          {isSystemRole ? (
+            <p className="text-sm text-muted-foreground">System roles cannot be modified</p>
+          ) : (
+            <>
+              {saveError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertDescription>{saveError}</AlertDescription>
+                </Alert>
+              )}
+              <div className="flex-1" />
+              <Button
+                onClick={handleSave}
+                disabled={!hasChanges || isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </>
+          )}
+        </CardFooter>
+      )}
     </Card>
   );
+}
+
+function arePermissionsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  return b.every(permission => setA.has(permission));
 } 

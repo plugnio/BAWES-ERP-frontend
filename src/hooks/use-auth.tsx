@@ -13,6 +13,7 @@ interface User {
   nameEn: string;
   nameAr: string;
   accountStatus: string;
+  permissionBits: string;
 }
 
 /**

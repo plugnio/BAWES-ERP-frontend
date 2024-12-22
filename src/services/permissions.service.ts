@@ -1,213 +1,209 @@
-import { BaseService } from './base.service';
-import type { AxiosPromise } from 'axios';
-import type { CreateRoleDto } from '@bawes/erp-api-sdk';
+import { Decimal } from 'decimal.js';
+import { ServiceRegistry } from '.';
 
 /**
- * Represents a single permission in the system
- * @interface Permission
+ * Permission interface representing a single permission
  */
-interface Permission {
-  /** Unique identifier for the permission */
+export interface Permission {
   id: string;
-  /** Unique code used to reference the permission */
-  code: string;
-  /** Human-readable name of the permission */
   name: string;
-  /** Detailed description of what the permission allows */
-  description: string;
-  /** Bitfield value used for permission checks */
-  bitfield: string;
+  description?: string;
+  deprecated?: boolean;
+  category?: string;
 }
 
 /**
- * Groups related permissions into categories
- * @interface PermissionCategory
+ * Category grouping related permissions
  */
-interface PermissionCategory {
-  /** Unique identifier for the category */
+export interface PermissionCategory {
   id: string;
-  /** Name of the category */
   name: string;
-  /** Description of the permissions in this category */
-  description: string;
-  /** List of permissions in this category */
+  description?: string;
   permissions: Permission[];
 }
 
 /**
- * Represents a role that can be assigned to users
- * @interface Role
+ * Role definition with associated permissions
  */
-interface Role {
-  /** Unique identifier for the role */
+export interface Role {
   id: string;
-  /** Name of the role */
   name: string;
-  /** Description of the role's purpose */
-  description: string;
-  /** Color used for UI representation */
-  color: string;
-  /** List of permission codes granted to this role */
+  description?: string;
+  sortOrder?: number;
   permissions: string[];
 }
 
 /**
- * Complete permission management dashboard data
- * @interface PermissionDashboard
+ * Dashboard data containing roles and permission categories
  */
-interface PermissionDashboard {
-  /** List of all roles in the system */
+export interface PermissionDashboard {
   roles: Role[];
-  /** List of all permission categories with their permissions */
   permissionCategories: PermissionCategory[];
 }
 
 /**
- * Service for managing roles and permissions in the system
- * Handles role creation, permission updates, and permission checks
- * 
- * @extends BaseService
- * 
- * @example
- * ```typescript
- * const permissionsService = new PermissionsService();
- * 
- * // Get all roles and permissions
- * const dashboard = await permissionsService.getDashboard();
- * 
- * // Create a new role
- * const role = await permissionsService.createRole(
- *   'Editor',
- *   'Can edit content',
- *   '#FF0000',
- *   ['CONTENT_EDIT', 'CONTENT_VIEW']
- * );
- * 
- * // Check if user has permission
- * const canEdit = permissionsService.hasPermission('CONTENT_EDIT', userPermissionBits);
- * ```
+ * DTO for creating a new role
  */
-export class PermissionsService extends BaseService {
-  /** Cache of permission details for quick lookup */
-  private permissionMap = new Map<string, Permission>();
+export interface CreateRoleDto {
+  name: string;
+  description?: string;
+  permissions: string[];
+}
+
+/**
+ * DTO for updating an existing role
+ */
+export interface UpdateRoleDto {
+  name?: string;
+  description?: string;
+  permissions?: string[];
+}
+
+/**
+ * DTO for updating role order
+ */
+export interface RoleOrderUpdate {
+  roleId: string;
+  sortOrder: number;
+}
+
+/**
+ * Internal cache entry type
+ */
+interface CacheEntry {
+  value: boolean;
+  timestamp: number;
+}
+
+/**
+ * Service for managing permissions and roles
+ */
+export class PermissionsService {
+  private static readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private static readonly SYSTEM_ROLES = ['SUPER_ADMIN', 'ADMIN', 'USER'];
+  private permissionCache: Map<string, CacheEntry> = new Map();
+
+  constructor(private registry: ServiceRegistry) {}
 
   /**
-   * Retrieves the complete permission management dashboard
-   * Includes all roles and permissions in the system
-   * Updates the permission cache on successful retrieval
-   * 
-   * @returns {Promise<PermissionDashboard>} Complete dashboard data
+   * Fetches the permission dashboard data
    */
   async getDashboard(): Promise<PermissionDashboard> {
-    const dashboard = await this.handleRequest<PermissionDashboard>(
-      this.client.permissions.permissionManagementControllerGetPermissionDashboard() as unknown as AxiosPromise<PermissionDashboard>
-    );
-    this.updatePermissionMap(dashboard);
-    return dashboard;
+    const api = this.registry.api;
+    const response = await api.roleManagementControllerGetDashboard();
+    return response.data;
   }
 
   /**
-   * Retrieves details of a specific role
-   * 
-   * @param {string} roleId - ID of the role to retrieve
-   * @returns {Promise<Role>} Role details
+   * Creates a new role
+   */
+  async createRole(dto: CreateRoleDto): Promise<Role> {
+    const api = this.registry.api;
+    const response = await api.roleManagementControllerCreateRole(dto);
+    return response.data;
+  }
+
+  /**
+   * Updates an existing role
+   */
+  async updateRole(roleId: string, dto: UpdateRoleDto): Promise<Role> {
+    if (this.isSystemRole(roleId)) {
+      throw new Error('Cannot modify system roles');
+    }
+
+    const api = this.registry.api;
+    const response = await api.roleManagementControllerUpdateRole(roleId, dto);
+    return response.data;
+  }
+
+  /**
+   * Updates role permissions
+   */
+  async updateRolePermissions(roleId: string, permissions: string[]): Promise<Role> {
+    if (this.isSystemRole(roleId)) {
+      throw new Error('Cannot modify system role permissions');
+    }
+
+    const api = this.registry.api;
+    const response = await api.roleManagementControllerUpdateRolePermissions(roleId, { permissions });
+    return response.data;
+  }
+
+  /**
+   * Updates the order of roles
+   */
+  async updateRoleOrder(updates: RoleOrderUpdate[]): Promise<void> {
+    // Validate no system roles are being modified
+    if (updates.some(update => this.isSystemRole(update.roleId))) {
+      throw new Error('Cannot modify system role order');
+    }
+
+    const api = this.registry.api;
+    await api.roleManagementControllerUpdateRoleOrder({ updates });
+  }
+
+  /**
+   * Deletes a role
+   */
+  async deleteRole(roleId: string): Promise<void> {
+    if (this.isSystemRole(roleId)) {
+      throw new Error('Cannot delete system roles');
+    }
+
+    const api = this.registry.api;
+    await api.roleManagementControllerDeleteRole(roleId);
+  }
+
+  /**
+   * Gets a specific role by ID
    */
   async getRole(roleId: string): Promise<Role> {
-    return this.handleRequest<Role>(
-      this.client.permissions.permissionManagementControllerGetRole(roleId) as unknown as AxiosPromise<Role>
-    );
+    const api = this.registry.api;
+    const response = await api.roleManagementControllerGetRole(roleId);
+    return response.data;
   }
 
   /**
-   * Creates a new role with specified permissions
-   * 
-   * @param {string} name - Name of the role
-   * @param {string} description - Description of the role
-   * @param {string} color - Color code for UI representation
-   * @param {string[]} permissions - List of permission codes to grant
-   * @returns {Promise<Role>} Created role details
+   * Checks if a user has a specific permission
    */
-  async createRole(name: string, description: string, color: string, permissions: string[]): Promise<Role> {
-    const roleDto: CreateRoleDto = {
-      name,
-      description,
-      color,
-      permissions,
-    };
-    return this.handleRequest<Role>(
-      this.client.roles.roleManagementControllerCreateRole(roleDto) as unknown as AxiosPromise<Role>
-    );
-  }
+  hasPermission(permissionId: string, permissionBits: string): boolean {
+    const cacheKey = `${permissionId}:${permissionBits}`;
+    const cached = this.permissionCache.get(cacheKey);
 
-  /**
-   * Updates the permissions assigned to a role
-   * 
-   * @param {string} roleId - ID of the role to update
-   * @param {string[]} permissions - New list of permission codes
-   * @returns {Promise<Role>} Updated role details
-   */
-  async updateRole(roleId: string, permissions: string[]): Promise<Role> {
-    return this.handleRequest<Role>(
-      this.client.roles.roleManagementControllerTogglePermissions(roleId, {
-        data: { permissions }
-      }) as unknown as AxiosPromise<Role>
-    );
-  }
-
-  /**
-   * Updates the internal permission cache from dashboard data
-   * @param {PermissionDashboard} dashboard - Dashboard data containing permissions
-   * @private
-   */
-  private updatePermissionMap(dashboard: PermissionDashboard) {
-    this.permissionMap.clear();
-    dashboard.permissionCategories.forEach(category => {
-      category.permissions.forEach(permission => {
-        this.permissionMap.set(permission.code, permission);
-      });
-    });
-  }
-
-  /**
-   * Retrieves detailed information about a permission
-   * 
-   * @param {string} code - Permission code to look up
-   * @returns {Permission | undefined} Permission details if found
-   */
-  getPermissionDetails(code: string): Permission | undefined {
-    return this.permissionMap.get(code);
-  }
-
-  /**
-   * Checks if a permission is granted based on permission bits
-   * Uses bitwise operations to check if the permission is included in the user's permissions
-   * 
-   * @param {string} permissionCode - Code of the permission to check
-   * @param {string} permissionBits - User's permission bits as a string
-   * @returns {boolean} True if the permission is granted
-   * 
-   * @example
-   * ```typescript
-   * const canEdit = permissionsService.hasPermission('CONTENT_EDIT', user.permissionBits);
-   * if (canEdit) {
-   *   // Allow edit operation
-   * }
-   * ```
-   */
-  hasPermission(permissionCode: string, permissionBits: string): boolean {
-    const permission = this.getPermissionDetails(permissionCode);
-    if (!permission) {
-      console.warn(`Unknown permission: ${permissionCode}`);
-      return false;
+    if (cached && Date.now() - cached.timestamp < PermissionsService.CACHE_TTL) {
+      return cached.value;
     }
-    
+
     try {
-      const userBits = BigInt(permissionBits || '0');
-      const permissionBit = BigInt(permission.bitfield);
-      return (userBits & permissionBit) === permissionBit;
-    } catch (err) {
-      console.error('Permission check failed:', err);
+      // Use Decimal.js for precise bitwise operations
+      const bits = new Decimal(permissionBits);
+      const permBit = new Decimal(2).pow(parseInt(permissionId, 10));
+      const result = !bits.mod(permBit).equals(0);
+
+      // Cache the result
+      this.permissionCache.set(cacheKey, {
+        value: result,
+        timestamp: Date.now(),
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error checking permission:', error);
       return false;
     }
+  }
+
+  /**
+   * Clears the permission cache
+   */
+  clearCache(): void {
+    this.permissionCache.clear();
+  }
+
+  /**
+   * Checks if a role is a system role
+   */
+  private isSystemRole(roleId: string): boolean {
+    return PermissionsService.SYSTEM_ROLES.includes(roleId);
   }
 } 
