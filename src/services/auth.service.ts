@@ -46,9 +46,17 @@ export class AuthService extends BaseService {
    * @param callback Function to call when token changes
    * @returns Function to unsubscribe
    */
-  onTokenChange(callback: () => void): () => void {
-    this.tokenChangeListeners.add(callback);
-    return () => this.tokenChangeListeners.delete(callback);
+  onTokenChange(callback: (hasToken: boolean) => void): () => void {
+    return this.client.onTokenChange(callback);
+  }
+
+  /**
+   * Subscribes to time to expiry updates
+   * @param callback Function to call when time updates
+   * @returns Function to unsubscribe
+   */
+  onTimeUpdate(callback: (timeToExpiry: number) => void): () => void {
+    return this.client.onTimeUpdate(callback);
   }
 
   /**

@@ -60,8 +60,18 @@ export function DebugPanel() {
       });
     };
 
-    // Subscribe to token changes through auth service
-    const unsubscribe = auth.onTokenChange(updateTokenState);
+    // Update time to expiry
+    const updateTimeToExpiry = (timeToExpiry: number) => {
+      if (!mounted) return;
+      setTokenState(state => ({
+        ...state,
+        timeToExpiry
+      }));
+    };
+
+    // Subscribe to token changes and time updates
+    const unsubscribeToken = auth.onTokenChange(updateTokenState);
+    const unsubscribeTime = auth.onTimeUpdate(updateTimeToExpiry);
 
     // Initial state update
     updateTokenState();
@@ -69,7 +79,8 @@ export function DebugPanel() {
     // Cleanup
     return () => {
       mounted = false;
-      unsubscribe();
+      unsubscribeToken();
+      unsubscribeTime();
     };
   }, [jwt, auth]);
 
@@ -77,7 +88,13 @@ export function DebugPanel() {
     return null;
   }
 
-  const minutesRemaining = Math.floor(tokenState.timeToExpiry / 60);
+  const formatTimeRemaining = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    if (minutes >= 2) {
+      return `${minutes}m`;
+    }
+    return `${seconds}s`;
+  };
 
   return (
     <Collapsible
@@ -95,7 +112,7 @@ export function DebugPanel() {
             Debug Panel
           </span>
           <Badge variant="outline" className="ml-2">
-            {minutesRemaining}m
+            {formatTimeRemaining(Math.floor(tokenState.timeToExpiry))}
           </Badge>
         </Button>
       </CollapsibleTrigger>

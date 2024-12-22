@@ -37,6 +37,7 @@ class ApiClient {
   private readonly REFRESH_TOKEN_COOKIE = 'refresh_token';
   private tokenPayload: any | null = null;
   private tokenChangeListeners: Set<(hasToken: boolean) => void> = new Set();
+  private timeUpdateListeners: Set<(timeToExpiry: number) => void> = new Set();
   private refreshPromise: Promise<void> | null = null;
   private currentTimeToExpiry: number = 0;
   private expiryInterval: NodeJS.Timeout | null = null;
@@ -91,7 +92,7 @@ class ApiClient {
     this.accessToken = token;
     this.tokenPayload = null; // Clear cached payload
     
-    // Notify all listeners
+    // Notify token change listeners
     const hasToken = !!token;
     this.tokenChangeListeners.forEach(listener => listener(hasToken));
   }
@@ -153,7 +154,15 @@ class ApiClient {
       }
       
       this.expiryInterval = setInterval(() => {
+        const prevTimeToExpiry = this.currentTimeToExpiry;
         this.currentTimeToExpiry = Math.max(0, this.currentTimeToExpiry - 1);
+        
+        // Notify time update listeners
+        if (prevTimeToExpiry !== this.currentTimeToExpiry) {
+          this.timeUpdateListeners.forEach(listener => 
+            listener(this.currentTimeToExpiry)
+          );
+        }
       }, 1000);
       
       // Only set up refresh if we have enough time
@@ -353,7 +362,21 @@ class ApiClient {
    */
   onTokenChange(callback: (hasToken: boolean) => void): () => void {
     this.tokenChangeListeners.add(callback);
+    // Initial callback with current state
+    callback(!!this.accessToken);
     return () => this.tokenChangeListeners.delete(callback);
+  }
+
+  /**
+   * Subscribes to time to expiry updates
+   * @param callback Function to call when time updates
+   * @returns Function to unsubscribe
+   */
+  onTimeUpdate(callback: (timeToExpiry: number) => void): () => void {
+    this.timeUpdateListeners.add(callback);
+    // Initial callback with current state
+    callback(this.currentTimeToExpiry);
+    return () => this.timeUpdateListeners.delete(callback);
   }
 
   /**
@@ -395,6 +418,7 @@ class ApiClient {
     }
     this.currentTimeToExpiry = 0;
     this.tokenChangeListeners.clear();
+    this.timeUpdateListeners.clear();
   }
 
   /**
