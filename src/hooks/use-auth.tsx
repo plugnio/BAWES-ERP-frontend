@@ -66,10 +66,42 @@ export function useAuth(): UseAuthReturn {
     }
   }, [auth]);
 
-  // Initialize user data on mount
+  // Initialize user data on mount and subscribe to token changes
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+    let mounted = true;
+
+    const updateUser = async () => {
+      if (!mounted) return;
+      setIsLoading(true);
+      try {
+        const currentUser = await auth.getCurrentUser();
+        if (mounted) {
+          setUser(currentUser);
+        }
+      } catch (error) {
+        if (mounted) {
+          setUser(null);
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    // Initial fetch
+    updateUser();
+    
+    // Subscribe to token changes
+    const unsubscribe = auth.onTokenChange(() => {
+      updateUser();
+    });
+    
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [auth]);
 
   /**
    * Authenticates a user with their email and password
