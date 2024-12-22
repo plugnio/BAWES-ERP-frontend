@@ -22,6 +22,11 @@ export class BaseService {
 
   constructor() {
     // Configuration is handled by SDK config
+    this.client.onTokenChange(() => {
+      if ('clearCache' in this) {
+        (this as any).clearCache();
+      }
+    });
   }
 
   /**

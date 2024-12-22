@@ -60,24 +60,8 @@ export function DebugPanel() {
       });
     };
 
-    // Update expiry timer every second
-    const updateExpiryTimer = () => {
-      if (!mounted) return;
-      
-      setTokenState(state => {
-        if (!state.hasToken) return state;
-        return {
-          ...state,
-          timeToExpiry: Math.max(0, state.timeToExpiry - 1)
-        };
-      });
-    };
-
     // Subscribe to token changes through auth service
     const unsubscribe = auth.onTokenChange(updateTokenState);
-
-    // Update timer every second
-    const timer = setInterval(updateExpiryTimer, 1000);
 
     // Initial state update
     updateTokenState();
@@ -86,7 +70,6 @@ export function DebugPanel() {
     return () => {
       mounted = false;
       unsubscribe();
-      clearInterval(timer);
     };
   }, [jwt, auth]);
 

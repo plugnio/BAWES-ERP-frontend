@@ -38,6 +38,8 @@ class ApiClient {
   private tokenPayload: any | null = null;
   private tokenChangeListeners: Set<(hasToken: boolean) => void> = new Set();
   private refreshPromise: Promise<void> | null = null;
+  private currentTimeToExpiry: number = 0;
+  private expiryInterval: NodeJS.Timeout | null = null;
 
   /** Authentication API instance */
   readonly auth: AuthenticationApi;
@@ -109,8 +111,15 @@ class ApiClient {
   }
 
   /**
-   * Sets up automatic token refresh before expiration
-   * Uses the JWT expiration time to schedule refresh
+   * Gets the current time to expiry
+   * @returns {number} Time to expiry in seconds
+   */
+  getTimeToExpiry(): number {
+    return this.currentTimeToExpiry;
+  }
+
+  /**
+   * Sets up the access token and refresh timer
    * @param {string} token - The JWT token to parse expiration from
    */
   private setupRefreshToken(token: string) {
@@ -134,6 +143,18 @@ class ApiClient {
       debugLog('ApiClient: Setting up token refresh', info);
 
       this.clearRefreshTokenTimeout();
+      
+      // Set initial time to expiry
+      this.currentTimeToExpiry = Math.floor(timeUntilExpiry / 1000);
+      
+      // Start expiry countdown
+      if (this.expiryInterval) {
+        clearInterval(this.expiryInterval);
+      }
+      
+      this.expiryInterval = setInterval(() => {
+        this.currentTimeToExpiry = Math.max(0, this.currentTimeToExpiry - 1);
+      }, 1000);
       
       // Only set up refresh if we have enough time
       if (refreshIn > 0) {
@@ -338,12 +359,16 @@ class ApiClient {
   /**
    * Handles token refresh failures
    * Clears the current token and refresh timeout
-   * Allows auth hook to handle redirect to login
    */
   private handleRefreshFailure() {
     debugLog('ApiClient: Handling refresh failure');
     this.setAccessToken(null);
     this.clearRefreshTokenTimeout();
+    if (this.expiryInterval) {
+      clearInterval(this.expiryInterval);
+      this.expiryInterval = null;
+    }
+    this.currentTimeToExpiry = 0;
   }
 
   /**
@@ -364,7 +389,12 @@ class ApiClient {
     debugLog('ApiClient: Resetting client state');
     this.setAccessToken(null);
     this.clearRefreshTokenTimeout();
-    this.tokenChangeListeners.clear(); // Clear all listeners on reset
+    if (this.expiryInterval) {
+      clearInterval(this.expiryInterval);
+      this.expiryInterval = null;
+    }
+    this.currentTimeToExpiry = 0;
+    this.tokenChangeListeners.clear();
   }
 
   /**
