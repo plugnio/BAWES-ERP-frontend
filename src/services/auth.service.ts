@@ -159,10 +159,11 @@ export class AuthService extends BaseService {
    */
   async logout() {
     try {
-      await this.client.auth.authControllerLogout({
-        refresh_token: 'dummy', // The actual token is sent via cookie
-      });
-      this.client.reset(); // Reset the API client state
+      // Call logout endpoint with empty refresh token
+      await this.client.auth.authControllerLogout({ refresh_token: '' });
+      
+      // Clear client state
+      this.client.reset();
       this.currentUser = null;
       
       // Notify listeners of token change
