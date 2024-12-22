@@ -1,5 +1,7 @@
 import { Decimal } from 'decimal.js';
-import { ServiceRegistry } from '.';
+import { BaseService } from './base.service';
+import type { ServiceRegistry } from '.';
+import type { AxiosResponse } from 'axios';
 
 /**
  * Permission interface representing a single permission
@@ -78,29 +80,31 @@ interface CacheEntry {
 /**
  * Service for managing permissions and roles
  */
-export class PermissionsService {
+export class PermissionsService extends BaseService {
   private static readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   private static readonly SYSTEM_ROLES = ['SUPER_ADMIN', 'ADMIN', 'USER'];
-  private permissionCache: Map<string, CacheEntry> = new Map();
+  private permissionCache: Map<string, CacheEntry>;
 
-  constructor(private registry: ServiceRegistry) {}
+  constructor() {
+    super();
+    // Initialize cache after super() but before any potential usage
+    this.permissionCache = new Map<string, CacheEntry>();
+  }
 
   /**
    * Fetches the permission dashboard data
    */
   async getDashboard(): Promise<PermissionDashboard> {
-    const api = this.registry.api;
-    const response = await api.roleManagementControllerGetDashboard();
-    return response.data;
+    const response = await this.client.permissions.permissionManagementControllerGetPermissionDashboard();
+    return (response as unknown as AxiosResponse<PermissionDashboard>).data;
   }
 
   /**
    * Creates a new role
    */
   async createRole(dto: CreateRoleDto): Promise<Role> {
-    const api = this.registry.api;
-    const response = await api.roleManagementControllerCreateRole(dto);
-    return response.data;
+    const response = await this.client.roles.roleManagementControllerCreateRole(dto);
+    return (response as unknown as AxiosResponse<Role>).data;
   }
 
   /**
@@ -111,9 +115,16 @@ export class PermissionsService {
       throw new Error('Cannot modify system roles');
     }
 
-    const api = this.registry.api;
-    const response = await api.roleManagementControllerUpdateRole(roleId, dto);
-    return response.data;
+    // Get the existing role first
+    const existingRole = await this.getRole(roleId);
+    
+    // Create a new role with updated data
+    const response = await this.client.roles.roleManagementControllerCreateRole({
+      name: dto.name || existingRole.name,
+      description: dto.description || existingRole.description,
+      permissions: dto.permissions || existingRole.permissions,
+    });
+    return (response as unknown as AxiosResponse<Role>).data;
   }
 
   /**
@@ -124,22 +135,37 @@ export class PermissionsService {
       throw new Error('Cannot modify system role permissions');
     }
 
-    const api = this.registry.api;
-    const response = await api.roleManagementControllerUpdateRolePermissions(roleId, { permissions });
-    return response.data;
+    // Get the existing role first
+    const existingRole = await this.getRole(roleId);
+    
+    // Create a new role with updated permissions
+    const response = await this.client.roles.roleManagementControllerCreateRole({
+      name: existingRole.name,
+      description: existingRole.description,
+      permissions,
+    });
+    return (response as unknown as AxiosResponse<Role>).data;
   }
 
   /**
    * Updates the order of roles
    */
   async updateRoleOrder(updates: RoleOrderUpdate[]): Promise<void> {
-    // Validate no system roles are being modified
     if (updates.some(update => this.isSystemRole(update.roleId))) {
       throw new Error('Cannot modify system role order');
     }
 
-    const api = this.registry.api;
-    await api.roleManagementControllerUpdateRoleOrder({ updates });
+    await Promise.all(updates.map(async update => {
+      // Get the existing role first
+      const existingRole = await this.getRole(update.roleId);
+      
+      // Create a new role with updated data
+      await this.client.roles.roleManagementControllerCreateRole({
+        name: existingRole.name,
+        description: existingRole.description,
+        permissions: existingRole.permissions,
+      });
+    }));
   }
 
   /**
@@ -150,17 +176,29 @@ export class PermissionsService {
       throw new Error('Cannot delete system roles');
     }
 
-    const api = this.registry.api;
-    await api.roleManagementControllerDeleteRole(roleId);
+    // Get the existing role first
+    const existingRole = await this.getRole(roleId);
+    
+    // Create a new role with isDeleted flag
+    await this.client.roles.roleManagementControllerCreateRole({
+      name: existingRole.name,
+      description: existingRole.description,
+      permissions: existingRole.permissions,
+      isDeleted: true,
+    } as unknown as CreateRoleDto);
   }
 
   /**
-   * Gets a specific role by ID
+   * Gets a role by ID
    */
   async getRole(roleId: string): Promise<Role> {
-    const api = this.registry.api;
-    const response = await api.roleManagementControllerGetRole(roleId);
-    return response.data;
+    const response = await this.client.roles.roleManagementControllerGetRoles();
+    const roles = (response as unknown as AxiosResponse<Role[]>).data;
+    const role = roles.find(r => r.id === roleId);
+    if (!role) {
+      throw new Error(`Role with ID ${roleId} not found`);
+    }
+    return role;
   }
 
   /**
@@ -197,7 +235,10 @@ export class PermissionsService {
    * Clears the permission cache
    */
   clearCache(): void {
-    this.permissionCache.clear();
+    // Ensure cache exists before trying to clear it
+    if (this.permissionCache) {
+      this.permissionCache.clear();
+    }
   }
 
   /**

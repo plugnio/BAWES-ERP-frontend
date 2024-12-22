@@ -3,8 +3,6 @@ import { AuthService } from './auth.service';
 import { PeopleService } from './people.service';
 import { PermissionsService } from './permissions.service';
 import { JwtService } from './jwt.service';
-import { RoleManagementApi, Configuration } from '@bawes/erp-api-sdk';
-import { getApiClient } from '@/lib/sdk/api';
 
 /**
  * Interface defining all available services in the application
@@ -21,8 +19,6 @@ export interface Services {
   permissions: PermissionsService;
   /** JWT token management service */
   jwt: JwtService;
-  /** API client from SDK */
-  api: RoleManagementApi;
 }
 
 /**
@@ -49,8 +45,6 @@ export class ServiceRegistry {
   readonly permissions: PermissionsService;
   /** JWT token management service */
   readonly jwt: JwtService;
-  /** API client instance */
-  readonly api: RoleManagementApi;
 
   /**
    * Private constructor to prevent direct instantiation
@@ -61,14 +55,10 @@ export class ServiceRegistry {
     // Initialize JWT service first
     this.jwt = new JwtService();
 
-    // Get API client instance from SDK
-    const apiClient = getApiClient();
-    this.api = apiClient.roles;
-
     // Initialize other services
     this.auth = new AuthService();
     this.people = new PeopleService();
-    this.permissions = new PermissionsService(this);
+    this.permissions = new PermissionsService();
   }
 
   /**
