@@ -39,7 +39,7 @@ export function DebugPanel() {
       // Handle no token case
       if (!token || !payload) {
         setTokenState(state => {
-          if (!state.hasToken) return state; // No change needed
+          if (!state.hasToken) return state;
           return {
             hasToken: false,
             tokenLength: 0,
@@ -51,34 +51,20 @@ export function DebugPanel() {
         return;
       }
 
-      // Update state only if something changed
-      setTokenState(state => {
-        // Check if any values actually changed
-        if (
-          state.token === token &&
-          state.timeToExpiry === timeToExpiry &&
-          state.payload === payload
-        ) {
-          return state; // No change needed
-        }
-
-        // Something changed, update state
-        return {
-          hasToken: true,
-          tokenLength: token.length,
-          timeToExpiry,
-          token,
-          payload
-        };
+      setTokenState({
+        hasToken: true,
+        tokenLength: token.length,
+        timeToExpiry,
+        token,
+        payload
       });
     };
 
     // Subscribe to token changes through auth service
-    const unsubscribe = auth.onTokenChange(() => {
-      if (mounted) {
-        updateTokenState();
-      }
-    });
+    const unsubscribe = auth.onTokenChange(updateTokenState);
+
+    // Update timer every second
+    const timer = setInterval(updateTokenState, 1000);
 
     // Initial state update
     updateTokenState();
@@ -87,8 +73,9 @@ export function DebugPanel() {
     return () => {
       mounted = false;
       unsubscribe();
+      clearInterval(timer);
     };
-  }, [jwt, auth]); // Dependencies on services
+  }, [jwt, auth]);
 
   if (!tokenState.hasToken) {
     return null;

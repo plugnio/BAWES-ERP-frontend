@@ -13,9 +13,11 @@ import { debugLog } from '@/lib/debug';
  */
 interface TokenResponse {
   /** JWT access token */
-  access_token: string;
+  accessToken: string;
+  /** Token type (e.g. "Bearer") */
+  tokenType: string;
   /** Token expiration time in seconds */
-  expires_in: number;
+  expiresIn: number;
 }
 
 /**
@@ -35,6 +37,7 @@ class ApiClient {
   private readonly REFRESH_TOKEN_COOKIE = 'refresh_token';
   private tokenPayload: any | null = null;
   private tokenChangeListeners: Set<(hasToken: boolean) => void> = new Set();
+  private refreshPromise: Promise<void> | null = null;
 
   /** Authentication API instance */
   readonly auth: AuthenticationApi;
@@ -107,64 +110,150 @@ class ApiClient {
 
   /**
    * Sets up automatic token refresh before expiration
-   * Clears any existing refresh timeout before setting new one
-   * @param {number} expiresIn - Token expiration time in seconds
+   * Uses the JWT expiration time to schedule refresh
+   * @param {string} token - The JWT token to parse expiration from
    */
-  private setupRefreshToken(expiresIn: number) {
-    const info = {
-      expiresIn,
-      refreshThreshold: SDK_CONFIG.refreshThreshold,
-      refreshIn: (expiresIn * 1000) - SDK_CONFIG.refreshThreshold
-    };
-    debugLog('ApiClient: Setting up token refresh', info);
+  private setupRefreshToken(token: string) {
+    try {
+      // Get expiration from JWT
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expirationTime = payload.exp * 1000; // Convert to milliseconds
+      const now = Date.now();
+      const timeUntilExpiry = expirationTime - now;
+      
+      // Schedule refresh 1 minute before expiration
+      const refreshIn = Math.max(0, timeUntilExpiry - SDK_CONFIG.refreshThreshold);
+      
+      const info = {
+        action: 'setup_refresh',
+        expirationTime: new Date(expirationTime).toISOString(),
+        timeUntilExpiry: timeUntilExpiry / 1000,
+        refreshIn: refreshIn / 1000,
+        willRefreshAt: new Date(now + refreshIn).toISOString()
+      };
+      debugLog('ApiClient: Setting up token refresh', info);
 
-    this.clearRefreshTokenTimeout();
-    const timeout = (expiresIn * 1000) - SDK_CONFIG.refreshThreshold;
-    
-    this.refreshTokenTimeout = setTimeout(() => {
-      debugLog('ApiClient: Refresh timeout triggered, attempting refresh');
-      this.refreshToken().catch((error) => {
-        console.error('Token refresh failed:', error);
-        this.handleRefreshFailure();
+      this.clearRefreshTokenTimeout();
+      
+      // Only set up refresh if we have enough time
+      if (refreshIn > 0) {
+        this.refreshTokenTimeout = setTimeout(() => {
+          debugLog('ApiClient: Refresh timeout triggered', {
+            action: 'refresh_trigger',
+            at: new Date().toISOString()
+          });
+          this.refreshToken().catch((error) => {
+            debugLog('ApiClient: Token refresh failed', {
+              error,
+              action: 'refresh_error'
+            });
+            this.handleRefreshFailure();
+          });
+        }, refreshIn);
+      } else {
+        debugLog('ApiClient: Token too close to expiration for refresh', {
+          action: 'skip_refresh'
+        });
+      }
+    } catch (error) {
+      debugLog('ApiClient: Failed to setup token refresh', {
+        error,
+        action: 'setup_refresh_error'
       });
-    }, timeout);
+      this.handleRefreshFailure();
+    }
   }
 
   /**
    * Sets up the access token and refresh timer
    * @param {TokenResponse} response - The token response from auth endpoint
    */
-  handleTokenResponse(response: TokenResponse) {
-    this.setAccessToken(response.access_token);
-    this.setupRefreshToken(response.expires_in);
+  handleTokenResponse(response: TokenResponse | { access_token: string; expires_in: number }) {
+    const info = {
+      action: 'handle_token_response',
+      hasToken: false,
+      expiresIn: 0
+    };
+
+    // Check which format we received
+    if ('accessToken' in response) {
+      info.hasToken = !!response.accessToken;
+      info.expiresIn = response.expiresIn;
+      
+      // Set the access token
+      this.setAccessToken(response.accessToken);
+
+      // Setup refresh if we have expiry
+      if (response.expiresIn) {
+        this.setupRefreshToken(response.accessToken);
+      }
+    } else {
+      info.hasToken = !!response.access_token;
+      info.expiresIn = response.expires_in;
+      
+      // Set the access token
+      this.setAccessToken(response.access_token);
+
+      // Setup refresh if we have expiry
+      if (response.expires_in) {
+        this.setupRefreshToken(response.access_token);
+      }
+    }
+
+    debugLog('ApiClient: Handling token response', info);
   }
 
   /**
-   * Attempts to refresh the access token
-   * Uses the refresh token stored in cookies
-   * @returns {Promise<TokenResponse>} New token response
-   * @throws {Error} If refresh fails or response format is invalid
+   * Refreshes the access token
+   * Uses a lock to prevent concurrent refresh attempts
    */
-  async refreshToken(): Promise<TokenResponse> {
+  async refreshToken() {
+    // If there's already a refresh in progress, wait for it
+    if (this.refreshPromise) {
+      debugLog('ApiClient: Token refresh in progress, waiting...', {
+        action: 'refresh_wait',
+        hasExistingPromise: true
+      });
+      try {
+        await this.refreshPromise;
+        return;
+      } catch (error) {
+        debugLog('ApiClient: Waiting for refresh failed', {
+          error,
+          action: 'refresh_wait_error'
+        });
+        throw error;
+      }
+    }
+
     try {
-      debugLog('ApiClient: Starting token refresh', {
-        action: 'refresh_start'
-      });
+      // Create new refresh promise and store reference before awaiting
+      const promise = (async () => {
+        debugLog('ApiClient: Starting token refresh', {
+          action: 'refresh_start'
+        });
+        
+        const response = await this.auth.authControllerRefresh({
+          refresh_token: 'dummy', // The actual token is sent via cookie
+        });
+        
+        // Cast response data to TokenResponse
+        const tokenResponse = response.data as unknown as TokenResponse;
+        
+        // Handle the token response
+        this.handleTokenResponse(tokenResponse);
+        
+        debugLog('ApiClient: Token refresh completed', {
+          action: 'refresh_success',
+          expiresIn: tokenResponse.expiresIn
+        });
+      })();
 
-      const response = await this.auth.authControllerRefresh({
-        refresh_token: 'dummy', // The actual token is sent via cookie
-      });
+      // Store the promise before awaiting it
+      this.refreshPromise = promise;
 
-      // Cast response data to TokenResponse
-      const tokenResponse = response.data as unknown as TokenResponse;
-      this.handleTokenResponse(tokenResponse);
-      
-      debugLog('ApiClient: Token refresh successful', {
-        action: 'refresh_success',
-        expiresIn: tokenResponse.expires_in
-      });
-      
-      return tokenResponse;
+      // Wait for refresh to complete
+      await promise;
     } catch (error) {
       debugLog('ApiClient: Token refresh failed', {
         error,
@@ -172,6 +261,9 @@ class ApiClient {
       });
       this.handleRefreshFailure();
       throw error;
+    } finally {
+      // Clear the refresh promise
+      this.refreshPromise = null;
     }
   }
 
@@ -278,11 +370,10 @@ class ApiClient {
   /**
    * Sets up the access token and refresh timer
    * @param {string} token - The access token to set
-   * @param {number} expiresIn - Token expiration time in seconds
    */
-  setupToken(token: string, expiresIn: number) {
+  setupToken(token: string) {
     this.setAccessToken(token);
-    this.setupRefreshToken(expiresIn);
+    this.setupRefreshToken(token);
   }
 }
 

@@ -80,14 +80,23 @@ export class JwtService extends BaseService {
    */
   getTokenState() {
     const token = this.client.getAccessToken();
-    const payload = this.getCurrentPayload();
-    const currentTime = Math.floor(Date.now() / 1000);
-    const timeToExpiry = payload ? payload.exp - currentTime : 0;
+    if (!token) {
+      return { token: null, payload: null, timeToExpiry: 0 };
+    }
 
-    return {
-      token,
-      payload,
-      timeToExpiry
-    };
+    try {
+      const payload = this.decodeToken(token);
+      const currentTime = Math.floor(Date.now() / 1000);
+      const timeToExpiry = payload.exp - currentTime;
+
+      if (this.isTokenExpired(payload)) {
+        return { token: null, payload: null, timeToExpiry: 0 };
+      }
+
+      return { token, payload, timeToExpiry };
+    } catch (error) {
+      console.error('Get token state error:', error);
+      return { token: null, payload: null, timeToExpiry: 0 };
+    }
   }
 } 
