@@ -40,6 +40,7 @@ export class AuthService extends BaseService {
   /** Cached user profile data */
   private currentUser: ProfileResponse | null = null;
   private tokenChangeListeners: Set<() => void> = new Set();
+  private refreshInProgress = false;
 
   /**
    * Subscribes to token changes
@@ -178,24 +179,34 @@ export class AuthService extends BaseService {
    */
   async getCurrentUser(): Promise<ProfileResponse | null> {
     try {
-      // If we have cached user data and a valid token exists, return it
+      // If we have cached user data, return it
+      if (this.currentUser) {
+        return this.currentUser;
+      }
+
+      // Check if we have a valid token
       const payload = this.client.getTokenPayload();
       if (payload) {
         this.currentUser = this.extractUserFromPayload(payload);
         return this.currentUser;
       }
 
-      // No valid token, try to refresh
-      try {
-        const response = await this.client.refreshToken();
-        const payload = this.client.getTokenPayload();
-        if (payload) {
-          this.currentUser = this.extractUserFromPayload(payload);
-          return this.currentUser;
+      // Only try to refresh once
+      if (!this.refreshInProgress) {
+        this.refreshInProgress = true;
+        try {
+          const response = await this.client.refreshToken();
+          const refreshedPayload = this.client.getTokenPayload();
+          if (refreshedPayload) {
+            this.currentUser = this.extractUserFromPayload(refreshedPayload);
+            return this.currentUser;
+          }
+        } catch {
+          // If refresh fails, we're not authenticated
+          this.currentUser = null;
+        } finally {
+          this.refreshInProgress = false;
         }
-      } catch {
-        // If refresh fails, we're not authenticated
-        this.currentUser = null;
       }
 
       return null;

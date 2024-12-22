@@ -69,6 +69,7 @@ export function useAuth(): UseAuthReturn {
   // Initialize user data on mount and subscribe to token changes
   useEffect(() => {
     let mounted = true;
+    let initialFetchDone = false;
 
     const updateUser = async () => {
       if (!mounted) return;
@@ -89,12 +90,18 @@ export function useAuth(): UseAuthReturn {
       }
     };
 
-    // Initial fetch
-    updateUser();
-    
     // Subscribe to token changes
     const unsubscribe = auth.onTokenChange(() => {
-      updateUser();
+      // Skip token change updates until after initial fetch
+      if (!initialFetchDone) return;
+      if (mounted) {
+        updateUser();
+      }
+    });
+    
+    // Do initial fetch
+    updateUser().then(() => {
+      initialFetchDone = true;
     });
     
     return () => {
