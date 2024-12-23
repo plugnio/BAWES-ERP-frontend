@@ -11,6 +11,7 @@ export interface Permission {
   description?: string;
   deprecated?: boolean;
   category?: string;
+  bitfield: string;
 }
 
 /**
@@ -27,7 +28,7 @@ export interface PermissionCategory {
  * Dashboard data containing permission categories
  */
 export interface PermissionDashboard {
-  permissionCategories: PermissionCategory[];
+  categories: PermissionCategory[];
 }
 
 /**
@@ -43,11 +44,14 @@ interface CacheEntry {
  */
 export class PermissionsService extends BaseService {
   private static readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  private permissionCache: Map<string, CacheEntry>;
+  private permissionCache: Map<string, CacheEntry> = new Map();
 
   constructor() {
     super();
-    this.permissionCache = new Map<string, CacheEntry>();
+    // Initialize cache if not already initialized
+    if (!this.permissionCache) {
+      this.permissionCache = new Map<string, CacheEntry>();
+    }
   }
 
   /**
@@ -62,6 +66,11 @@ export class PermissionsService extends BaseService {
    * Checks if a user has a specific permission
    */
   hasPermission(permissionId: string, permissionBits: string): boolean {
+    // Ensure cache exists
+    if (!this.permissionCache) {
+      this.permissionCache = new Map<string, CacheEntry>();
+    }
+
     const cacheKey = `${permissionId}:${permissionBits}`;
     const cached = this.permissionCache.get(cacheKey);
 
@@ -94,6 +103,8 @@ export class PermissionsService extends BaseService {
   clearCache(): void {
     if (this.permissionCache) {
       this.permissionCache.clear();
+    } else {
+      this.permissionCache = new Map<string, CacheEntry>();
     }
   }
 } 

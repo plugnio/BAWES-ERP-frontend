@@ -1,5 +1,6 @@
 import { BaseService } from './base.service';
 import type { AxiosResponse } from 'axios';
+import type { RawAxiosRequestConfig } from 'axios';
 
 /**
  * Role definition with associated permissions
@@ -10,6 +11,7 @@ export interface Role {
   description?: string;
   sortOrder?: number;
   permissions: string[];
+  isSystem: boolean;
 }
 
 /**
@@ -42,7 +44,27 @@ export interface RoleOrderUpdate {
  * Service for managing roles
  */
 export class RoleService extends BaseService {
-  private static readonly SYSTEM_ROLES = ['SUPER_ADMIN', 'ADMIN', 'USER'];
+  /**
+   * Gets all roles
+   */
+  async getRoles(): Promise<Role[]> {
+    const response = await this.client.roles.roleManagementControllerGetRoles();
+    return (response as unknown as AxiosResponse<Role[]>).data;
+  }
+
+  /**
+   * Gets a specific role by ID
+   */
+  async getRole(roleId: string): Promise<Role> {
+    // Note: The SDK doesn't have a direct getRole endpoint, so we fetch all roles and filter
+    const response = await this.client.roles.roleManagementControllerGetRoles();
+    const roles = (response as unknown as AxiosResponse<Role[]>).data;
+    const role = roles.find(r => r.id === roleId);
+    if (!role) {
+      throw new Error(`Role with ID ${roleId} not found`);
+    }
+    return role;
+  }
 
   /**
    * Creates a new role
@@ -56,19 +78,19 @@ export class RoleService extends BaseService {
    * Updates an existing role
    */
   async updateRole(roleId: string, dto: UpdateRoleDto): Promise<Role> {
-    if (this.isSystemRole(roleId)) {
+    const role = await this.getRole(roleId);
+    if (role.isSystem) {
       throw new Error('Cannot modify system roles');
     }
 
-    // Get the existing role first
-    const existingRole = await this.getRole(roleId);
-    
-    // Create a new role with updated data
-    const response = await this.client.roles.roleManagementControllerCreateRole({
-      name: dto.name || existingRole.name,
-      description: dto.description || existingRole.description,
-      permissions: dto.permissions || existingRole.permissions,
-    });
+    // Since there's no direct update endpoint, we'll create a new role with the updated data
+    const updatedDto: CreateRoleDto = {
+      name: dto.name || role.name,
+      description: dto.description ?? role.description,
+      permissions: dto.permissions || role.permissions,
+    };
+
+    const response = await this.client.roles.roleManagementControllerCreateRole(updatedDto);
     return (response as unknown as AxiosResponse<Role>).data;
   }
 
@@ -76,80 +98,62 @@ export class RoleService extends BaseService {
    * Updates role permissions
    */
   async updateRolePermissions(roleId: string, permissions: string[]): Promise<Role> {
-    if (this.isSystemRole(roleId)) {
+    const role = await this.getRole(roleId);
+    if (role.isSystem) {
       throw new Error('Cannot modify system role permissions');
     }
 
-    // Get the existing role first
-    const existingRole = await this.getRole(roleId);
-    
-    // Create a new role with updated permissions
-    const response = await this.client.roles.roleManagementControllerCreateRole({
-      name: existingRole.name,
-      description: existingRole.description,
-      permissions,
-    });
+    const config: RawAxiosRequestConfig = {
+      data: { permissions }
+    };
+
+    const response = await this.client.roles.roleManagementControllerTogglePermissions(roleId, config);
     return (response as unknown as AxiosResponse<Role>).data;
   }
 
   /**
-   * Updates the order of roles
+   * Updates role order
    */
   async updateRoleOrder(updates: RoleOrderUpdate[]): Promise<void> {
-    if (updates.some(update => this.isSystemRole(update.roleId))) {
-      throw new Error('Cannot modify system role order');
-    }
+    // Get all roles to check for system roles
+    const roles = await this.getRoles();
+    const systemRoles = new Set(roles.filter(r => r.isSystem).map(r => r.id));
 
-    await Promise.all(updates.map(async update => {
-      // Get the existing role first
-      const existingRole = await this.getRole(update.roleId);
-      
-      // Create a new role with updated data
-      await this.client.roles.roleManagementControllerCreateRole({
-        name: existingRole.name,
-        description: existingRole.description,
-        permissions: existingRole.permissions,
-      });
-    }));
+    // Filter out system roles from updates
+    const validUpdates = updates.filter(update => !systemRoles.has(update.roleId));
+
+    for (const update of validUpdates) {
+      const config: RawAxiosRequestConfig = {
+        data: { position: update.sortOrder }
+      };
+      await this.client.roles.roleManagementControllerUpdatePosition(update.roleId, config);
+    }
+  }
+
+  /**
+   * Assigns a role to a user
+   */
+  async assignRole(userId: string): Promise<void> {
+    await this.client.roles.roleManagementControllerAssignRole(userId);
+  }
+
+  /**
+   * Removes a role from a user
+   */
+  async removeRoleFromUser(userId: string, roleId: string): Promise<void> {
+    await this.client.roles.roleManagementControllerRemoveRole(userId, roleId);
   }
 
   /**
    * Deletes a role
+   * @throws {Error} Role deletion is not supported by the API
    */
   async deleteRole(roleId: string): Promise<void> {
-    if (this.isSystemRole(roleId)) {
+    const role = await this.getRole(roleId);
+    if (role.isSystem) {
       throw new Error('Cannot delete system roles');
     }
 
-    // Get the existing role first
-    const existingRole = await this.getRole(roleId);
-    
-    // Create a new role with isDeleted flag
-    await this.client.roles.roleManagementControllerCreateRole({
-      name: existingRole.name,
-      description: existingRole.description,
-      permissions: existingRole.permissions,
-      isDeleted: true,
-    } as unknown as CreateRoleDto);
-  }
-
-  /**
-   * Gets a role by ID
-   */
-  async getRole(roleId: string): Promise<Role> {
-    const response = await this.client.roles.roleManagementControllerGetRoles();
-    const roles = (response as unknown as AxiosResponse<Role[]>).data;
-    const role = roles.find(r => r.id === roleId);
-    if (!role) {
-      throw new Error(`Role with ID ${roleId} not found`);
-    }
-    return role;
-  }
-
-  /**
-   * Checks if a role is a system role
-   */
-  private isSystemRole(roleId: string): boolean {
-    return RoleService.SYSTEM_ROLES.includes(roleId);
+    throw new Error('Role deletion is not supported by the API');
   }
 } 
