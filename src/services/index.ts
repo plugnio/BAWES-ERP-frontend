@@ -2,6 +2,7 @@ import { BaseService } from './base.service';
 import { AuthService } from './auth.service';
 import { PeopleService } from './people.service';
 import { PermissionsService } from './permissions.service';
+import { RoleService } from './role.service';
 import { JwtService } from './jwt.service';
 
 /**
@@ -15,8 +16,10 @@ export interface Services {
   auth: AuthService;
   /** People management service */
   people: PeopleService;
-  /** Permissions and role management service */
+  /** Permissions management service */
   permissions: PermissionsService;
+  /** Role management service */
+  roles: RoleService;
   /** JWT token management service */
   jwt: JwtService;
 }
@@ -43,6 +46,8 @@ export class ServiceRegistry {
   readonly people: PeopleService;
   /** Permissions management service instance */
   readonly permissions: PermissionsService;
+  /** Role management service instance */
+  readonly roles: RoleService;
   /** JWT token management service */
   readonly jwt: JwtService;
 
@@ -59,6 +64,7 @@ export class ServiceRegistry {
     this.auth = new AuthService();
     this.people = new PeopleService();
     this.permissions = new PermissionsService();
+    this.roles = new RoleService();
   }
 
   /**
