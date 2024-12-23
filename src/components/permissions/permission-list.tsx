@@ -25,7 +25,7 @@ interface PermissionListProps {
   categories: PermissionCategory[];
   selectedPermissions?: Set<string>;
   onPermissionToggle?: (permissionId: string) => void;
-  onBulkSelect?: (categoryId: string, selected: boolean) => void;
+  onBulkSelect?: (categoryName: string, selected: boolean) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -62,20 +62,21 @@ export function PermissionList({
   }, [selectedPermissions]);
 
   // Handle category expansion
-  const handleExpand = (categoryId: string) => {
+  const handleExpand = (categoryName: string) => {
     setExpandedCategories(prev => {
-      if (prev.includes(categoryId)) {
-        return prev.filter(id => id !== categoryId);
+      if (prev.includes(categoryName)) {
+        return prev.filter(name => name !== categoryName);
       }
-      return [...prev, categoryId];
+      return [...prev, categoryName];
     });
   };
 
   // Handle category bulk selection
-  const handleCategorySelect = (category: PermissionCategory) => {
+  const handleCategorySelect = (category: PermissionCategory, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!onBulkSelect) return;
     const isSelected = isCategorySelected(category);
-    onBulkSelect(category.id, !isSelected);
+    onBulkSelect(category.name, !isSelected);
   };
 
   return (
@@ -103,56 +104,58 @@ export function PermissionList({
           >
             {filteredCategories.map(category => (
               <AccordionItem
-                key={category.id}
-                value={category.id}
+                key={category.name}
+                value={category.name}
                 className="border rounded-lg px-4"
               >
-                <AccordionTrigger
-                  onClick={() => handleExpand(category.id)}
-                  className="hover:no-underline"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`category-${category.id}`}
-                      checked={isCategorySelected(category)}
-                      onCheckedChange={() => handleCategorySelect(category)}
-                      disabled={disabled}
-                      onClick={e => e.stopPropagation()}
-                    />
-                    <div className="flex flex-col items-start">
-                      <span className="text-sm font-medium">{category.name}</span>
-                      {category.description && (
-                        <span className="text-xs text-muted-foreground">
-                          {category.description}
-                        </span>
-                      )}
+                <div className="flex items-center py-4">
+                  <div 
+                    className="flex items-center space-x-2 flex-1 cursor-pointer"
+                    onClick={() => handleExpand(category.name)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`category-${category.name}`}
+                        checked={isCategorySelected(category)}
+                        onCheckedChange={() => onBulkSelect?.(category.name, !isCategorySelected(category))}
+                        disabled={disabled}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="flex flex-col items-start">
+                        <span className="text-sm font-medium">{category.name}</span>
+                        {category.description && (
+                          <span key={`desc-${category.name}`} className="text-xs text-muted-foreground">
+                            {category.description}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </AccordionTrigger>
+                </div>
                 <AccordionContent>
                   <div className="space-y-2 py-2">
                     {category.permissions
                       .filter(permission => !permission.deprecated)
                       .map(permission => (
                         <div
-                          key={permission.id}
+                          key={`permission-${permission.id}`}
                           className="flex items-start space-x-2 px-6"
                         >
                           <Checkbox
-                            id={permission.id}
+                            id={`permission-${permission.id}`}
                             checked={selectedPermissions.has(permission.id)}
                             onCheckedChange={() => onPermissionToggle?.(permission.id)}
                             disabled={disabled}
                           />
                           <div className="space-y-1">
                             <label
-                              htmlFor={permission.id}
+                              htmlFor={`permission-${permission.id}`}
                               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                             >
                               {permission.name}
                             </label>
                             {permission.description && (
-                              <p className="text-xs text-muted-foreground">
+                              <p key={`permission-desc-${permission.id}`} className="text-xs text-muted-foreground">
                                 {permission.description}
                               </p>
                             )}

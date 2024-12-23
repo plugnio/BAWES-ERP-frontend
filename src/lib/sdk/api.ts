@@ -5,7 +5,7 @@ import {
   PermissionManagementApi,
   RoleManagementApi,
 } from '@bawes/erp-api-sdk';
-import { SDK_CONFIG, createConfiguration } from './config';
+import { SDK_CONFIG, createConfiguration, setTokenAccessor } from './config';
 import { debugLog } from '@/lib/debug';
 
 /**
@@ -42,14 +42,17 @@ class ApiClient {
   private currentTimeToExpiry: number = 0;
   private expiryInterval: NodeJS.Timeout | null = null;
 
-  /** Authentication API instance */
-  readonly auth: AuthenticationApi;
-  /** People management API instance */
-  readonly people: PeopleApi;
-  /** Permission management API instance */
-  readonly permissions: PermissionManagementApi;
-  /** Role management API instance */
-  readonly roles: RoleManagementApi;
+  // Private API instances
+  private _auth: AuthenticationApi;
+  private _people: PeopleApi;
+  private _permissions: PermissionManagementApi;
+  private _roles: RoleManagementApi;
+
+  // Public getters for API instances
+  get auth(): AuthenticationApi { return this._auth; }
+  get people(): PeopleApi { return this._people; }
+  get permissions(): PermissionManagementApi { return this._permissions; }
+  get roles(): RoleManagementApi { return this._roles; }
 
   private constructor() {
     debugLog('ApiClient: Initializing', {
@@ -57,13 +60,16 @@ class ApiClient {
       timestamp: new Date().toISOString()
     });
     
+    // Set up token accessor before creating configuration
+    setTokenAccessor(() => this.accessToken);
+    
     this.configuration = createConfiguration();
 
     // Initialize API instances
-    this.auth = new AuthenticationApi(this.configuration);
-    this.people = new PeopleApi(this.configuration);
-    this.permissions = new PermissionManagementApi(this.configuration);
-    this.roles = new RoleManagementApi(this.configuration);
+    this._auth = new AuthenticationApi(this.configuration);
+    this._people = new PeopleApi(this.configuration);
+    this._permissions = new PermissionManagementApi(this.configuration);
+    this._roles = new RoleManagementApi(this.configuration);
   }
 
   /**
@@ -91,6 +97,15 @@ class ApiClient {
     
     this.accessToken = token;
     this.tokenPayload = null; // Clear cached payload
+    
+    // Recreate configuration with new token
+    this.configuration = createConfiguration();
+    
+    // Reinitialize API instances with new configuration
+    this._auth = new AuthenticationApi(this.configuration);
+    this._people = new PeopleApi(this.configuration);
+    this._permissions = new PermissionManagementApi(this.configuration);
+    this._roles = new RoleManagementApi(this.configuration);
     
     // Notify token change listeners
     const hasToken = !!token;
