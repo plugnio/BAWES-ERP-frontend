@@ -42,17 +42,19 @@ class ApiClient {
   private currentTimeToExpiry: number = 0;
   private expiryInterval: NodeJS.Timeout | null = null;
 
-  // Private API instances
-  private _auth: AuthenticationApi;
-  private _people: PeopleApi;
-  private _permissions: PermissionManagementApi;
-  private _roles: RoleManagementApi;
+  // API service instances
+  private readonly services = {
+    auth: {} as AuthenticationApi,
+    people: {} as PeopleApi,
+    permissions: {} as PermissionManagementApi,
+    roles: {} as RoleManagementApi,
+  };
 
   // Public getters for API instances
-  get auth(): AuthenticationApi { return this._auth; }
-  get people(): PeopleApi { return this._people; }
-  get permissions(): PermissionManagementApi { return this._permissions; }
-  get roles(): RoleManagementApi { return this._roles; }
+  get auth(): AuthenticationApi { return this.services.auth; }
+  get people(): PeopleApi { return this.services.people; }
+  get permissions(): PermissionManagementApi { return this.services.permissions; }
+  get roles(): RoleManagementApi { return this.services.roles; }
 
   private constructor() {
     debugLog('ApiClient: Initializing', {
@@ -64,12 +66,20 @@ class ApiClient {
     setTokenAccessor(() => this.accessToken);
     
     this.configuration = createConfiguration();
+    this.initializeServices();
+  }
 
-    // Initialize API instances
-    this._auth = new AuthenticationApi(this.configuration);
-    this._people = new PeopleApi(this.configuration);
-    this._permissions = new PermissionManagementApi(this.configuration);
-    this._roles = new RoleManagementApi(this.configuration);
+  /**
+   * Initialize API service instances
+   * @private
+   */
+  private initializeServices() {
+    Object.assign(this.services, {
+      auth: new AuthenticationApi(this.configuration),
+      people: new PeopleApi(this.configuration),
+      permissions: new PermissionManagementApi(this.configuration),
+      roles: new RoleManagementApi(this.configuration),
+    });
   }
 
   /**
@@ -100,12 +110,7 @@ class ApiClient {
     
     // Recreate configuration with new token
     this.configuration = createConfiguration();
-    
-    // Reinitialize API instances with new configuration
-    this._auth = new AuthenticationApi(this.configuration);
-    this._people = new PeopleApi(this.configuration);
-    this._permissions = new PermissionManagementApi(this.configuration);
-    this._roles = new RoleManagementApi(this.configuration);
+    this.initializeServices();
     
     // Notify token change listeners
     const hasToken = !!token;
