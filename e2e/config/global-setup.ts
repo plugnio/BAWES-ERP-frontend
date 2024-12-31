@@ -1,11 +1,9 @@
 import { FullConfig } from '@playwright/test';
-import dotenv from 'dotenv';
+import { loadTestEnv } from './env';
 
 async function globalSetup(config: FullConfig) {
-  // Load test environment variables
-  dotenv.config({ path: '.env.test' });
-
-  // Add any global setup here (e.g., database seeding, test data setup)
+    // Load and validate test environment variables
+    loadTestEnv();
 }
 
 export default globalSetup; 

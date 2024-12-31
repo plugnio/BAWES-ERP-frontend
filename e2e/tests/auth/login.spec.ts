@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { ROUTES } from '../constants';
+import { loadTestEnv } from '../../config/env';
 
 test.describe('Authentication', () => {
   test('should login successfully with valid credentials', async ({ page }) => {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002';
-    const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL || 'http://localhost:3000';
+    const env = loadTestEnv();
     
     // Enable request/response logging
     page.on('request', request => {
@@ -39,7 +39,7 @@ test.describe('Authentication', () => {
     });
     
     // Navigate to login page
-    await page.goto(`${baseUrl}${ROUTES.LOGIN}`);
+    await page.goto(`${env.appUrl}${ROUTES.LOGIN}`);
     
     // Wait for form elements
     const emailInput = await page.waitForSelector('input[name="email"]');
@@ -47,13 +47,13 @@ test.describe('Authentication', () => {
     const submitButton = await page.waitForSelector('button[type="submit"]');
 
     // Fill in credentials
-    await emailInput.fill(process.env.TEST_ADMIN_EMAIL || '');
-    await passwordInput.fill(process.env.TEST_ADMIN_PASSWORD || '');
+    await emailInput.fill(env.testEmail);
+    await passwordInput.fill(env.testPassword);
 
     // Set up response promise before clicking
     const responsePromise = page.waitForResponse(
       response => {
-        const isLoginUrl = response.url().includes(`${apiUrl}/auth/login`);
+        const isLoginUrl = response.url().includes(`${env.apiUrl}/auth/login`);
         console.log('Checking response:', { url: response.url(), isLoginUrl });
         return isLoginUrl;
       }
@@ -87,8 +87,7 @@ test.describe('Authentication', () => {
   });
 
   test('should show error with invalid credentials', async ({ page }) => {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002';
-    const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL || 'http://localhost:3000';
+    const env = loadTestEnv();
     
     // Enable request/response logging
     page.on('request', request => {
@@ -123,7 +122,7 @@ test.describe('Authentication', () => {
     });
     
     // Navigate to login page
-    await page.goto(`${baseUrl}${ROUTES.LOGIN}`);
+    await page.goto(`${env.appUrl}${ROUTES.LOGIN}`);
     
     // Wait for form elements
     const emailInput = await page.waitForSelector('input[name="email"]');
@@ -137,7 +136,7 @@ test.describe('Authentication', () => {
     // Set up response promise before clicking
     const responsePromise = page.waitForResponse(
       response => {
-        const isLoginUrl = response.url().includes(`${apiUrl}/auth/login`);
+        const isLoginUrl = response.url().includes(`${env.apiUrl}/auth/login`);
         console.log('Checking response:', { url: response.url(), isLoginUrl });
         return isLoginUrl;
       }

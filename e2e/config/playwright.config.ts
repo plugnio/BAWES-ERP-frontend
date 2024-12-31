@@ -1,16 +1,15 @@
 import { PlaywrightTestConfig } from '@playwright/test';
-import dotenv from 'dotenv';
-import path from 'path';
+import { loadTestEnv } from './env';
 
-// Load test environment variables from the workspace root
-dotenv.config({ path: path.join(__dirname, '../../.env.test') });
+// Load and validate environment variables
+const env = loadTestEnv();
 
 const config: PlaywrightTestConfig = {
   testDir: '../tests',
   timeout: 60000,
   retries: 2,
   use: {
-    baseURL: process.env.NEXT_PUBLIC_APP_URL,
+    baseURL: env.appUrl,
     trace: 'on',
     screenshot: 'on',
     video: 'on',
