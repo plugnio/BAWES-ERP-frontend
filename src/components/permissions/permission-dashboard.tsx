@@ -41,9 +41,12 @@ export function PermissionDashboard({
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
 
+  // Only load dashboard if we don't have it yet
   React.useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    if (!dashboard) {
+      loadDashboard();
+    }
+  }, [dashboard, loadDashboard]);
 
   React.useEffect(() => {
     if (roleId) {
@@ -94,7 +97,7 @@ export function PermissionDashboard({
 
     const newSelected = new Set(selectedPermissions);
     category.permissions
-      .filter((p: Permission) => !p.deprecated)
+      .filter((p: Permission) => !p.isDeprecated)
       .forEach((permission: Permission) => {
         if (selected) {
           newSelected.add(permission.id);

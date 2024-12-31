@@ -1,6 +1,7 @@
 import { BaseService } from './base.service';
 import type { AxiosResponse } from 'axios';
 import type { RawAxiosRequestConfig } from 'axios';
+import type { CreateRoleDto as SDKCreateRoleDto } from '@bawes/erp-api-sdk';
 
 /**
  * Role definition with associated permissions
@@ -9,18 +10,20 @@ export interface Role {
   id: string;
   name: string;
   description?: string;
-  sortOrder?: number;
+  color?: string;
   permissions: string[];
   isSystem: boolean;
+  sortOrder: number;
 }
 
 /**
  * DTO for creating a new role
  */
-export interface CreateRoleDto {
+export interface CreateRoleDto extends SDKCreateRoleDto {
   name: string;
   description?: string;
-  permissions: string[];
+  color?: string;
+  permissions?: string[];
 }
 
 /**
@@ -29,6 +32,7 @@ export interface CreateRoleDto {
 export interface UpdateRoleDto {
   name?: string;
   description?: string;
+  color?: string;
   permissions?: string[];
 }
 
@@ -38,6 +42,27 @@ export interface UpdateRoleDto {
 export interface RoleOrderUpdate {
   roleId: string;
   sortOrder: number;
+}
+
+export interface PermissionDashboard {
+  categories: {
+    name: string;
+    permissions: {
+      id: string;
+      name: string;
+      description: string;
+      category: string;
+      isDeprecated: boolean;
+      sortOrder: number;
+      bitfield: string;
+    }[];
+  }[];
+  roles: Role[];
+  stats: {
+    totalPermissions: number;
+    totalRoles: number;
+    systemRoles: number;
+  };
 }
 
 /**
@@ -87,6 +112,7 @@ export class RoleService extends BaseService {
     const updatedDto: CreateRoleDto = {
       name: dto.name || role.name,
       description: dto.description ?? role.description,
+      color: dto.color ?? role.color,
       permissions: dto.permissions || role.permissions,
     };
 

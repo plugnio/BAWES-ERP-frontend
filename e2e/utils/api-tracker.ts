@@ -12,8 +12,11 @@ export class ApiTracker {
   private calls: ApiCall[] = [];
 
   constructor(page: Page) {
+    const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL;
+    if (!apiUrl) throw new Error('NEXT_PUBLIC_ERP_API_URL environment variable is not set');
+
     page.on('request', request => {
-      if (request.url().includes('/api/')) {
+      if (request.url().includes(apiUrl)) {
         this.recordCall(request);
       }
     });

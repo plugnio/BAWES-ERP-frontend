@@ -2,6 +2,9 @@ import { Decimal } from 'decimal.js';
 import { BaseService } from './base.service';
 import type { AxiosResponse } from 'axios';
 import type { Role } from './role.service';
+import type { CreateRoleDto } from './role.service';
+import type { UpdateRoleDto } from './role.service';
+import type { RoleOrderUpdate } from './role.service';
 
 /**
  * Permission interface representing a single permission
@@ -9,9 +12,10 @@ import type { Role } from './role.service';
 export interface Permission {
   id: string;
   name: string;
-  description?: string;
-  deprecated?: boolean;
-  category?: string;
+  description: string;
+  category: string;
+  isDeprecated: boolean;
+  sortOrder: number;
   bitfield: string;
 }
 
@@ -19,9 +23,7 @@ export interface Permission {
  * Category grouping related permissions
  */
 export interface PermissionCategory {
-  id: string;
   name: string;
-  description?: string;
   permissions: Permission[];
 }
 
@@ -52,6 +54,7 @@ interface CacheEntry {
 export class PermissionsService extends BaseService {
   private static readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   private permissionCache: Map<string, CacheEntry> = new Map();
+  private dashboardCache: { data: PermissionDashboard | null; timestamp: number } | null = null;
 
   constructor() {
     super();
@@ -62,11 +65,97 @@ export class PermissionsService extends BaseService {
   }
 
   /**
+   * Creates a new role
+   */
+  async createRole(dto: CreateRoleDto): Promise<Role> {
+    const response = await this.client.roles.roleManagementControllerCreateRole({
+      name: dto.name,
+      description: dto.description,
+      color: dto.color,
+      permissions: dto.permissions || [],
+    });
+    this.clearDashboardCache();
+    return (response as unknown as AxiosResponse<Role>).data;
+  }
+
+  /**
+   * Updates an existing role
+   */
+  async updateRole(roleId: string, dto: UpdateRoleDto): Promise<Role> {
+    const role = await this.getRole(roleId);
+    const response = await this.client.roles.roleManagementControllerCreateRole({
+      name: dto.name || role.name,
+      description: dto.description ?? role.description,
+      color: dto.color ?? role.color,
+      permissions: dto.permissions || role.permissions,
+    });
+    this.clearDashboardCache();
+    return (response as unknown as AxiosResponse<Role>).data;
+  }
+
+  /**
+   * Deletes a role
+   */
+  async deleteRole(roleId: string): Promise<void> {
+    const userId = 'system'; // The SDK requires a userId, but we're using system-level operations
+    await this.client.roles.roleManagementControllerRemoveRole(userId, roleId);
+    this.clearDashboardCache();
+  }
+
+  /**
+   * Gets a role by ID
+   */
+  async getRole(roleId: string): Promise<Role> {
+    const response = await this.client.roles.roleManagementControllerGetRoles();
+    const roles = (response as unknown as AxiosResponse<Role[]>).data;
+    const role = roles.find(r => r.id === roleId);
+    if (!role) {
+      throw new Error(`Role with ID ${roleId} not found`);
+    }
+    return role;
+  }
+
+  /**
+   * Updates role permissions
+   */
+  async updateRolePermissions(roleId: string, permissions: string[]): Promise<void> {
+    await this.client.roles.roleManagementControllerTogglePermissions(roleId, {
+      data: { permissions },
+    });
+    this.clearDashboardCache();
+  }
+
+  /**
+   * Updates role order
+   */
+  async updateRoleOrder(updates: RoleOrderUpdate[]): Promise<void> {
+    for (const update of updates) {
+      await this.client.roles.roleManagementControllerUpdatePosition(update.roleId, {
+        data: { sortOrder: update.sortOrder },
+      });
+    }
+    this.clearDashboardCache();
+  }
+
+  /**
    * Fetches the permission dashboard data
    */
   async getDashboard(): Promise<PermissionDashboard> {
+    // Check cache first
+    if (this.dashboardCache && Date.now() - this.dashboardCache.timestamp < PermissionsService.CACHE_TTL) {
+      return this.dashboardCache.data!;
+    }
+
     const response = await this.client.permissions.permissionManagementControllerGetPermissionDashboard();
-    return (response as unknown as AxiosResponse<PermissionDashboard>).data;
+    const data = (response as unknown as AxiosResponse<PermissionDashboard>).data;
+    
+    // Cache the result
+    this.dashboardCache = {
+      data,
+      timestamp: Date.now(),
+    };
+
+    return data;
   }
 
   /**
@@ -105,7 +194,7 @@ export class PermissionsService extends BaseService {
   }
 
   /**
-   * Clears the permission cache
+   * Clears all caches
    */
   clearCache(): void {
     if (this.permissionCache) {
@@ -113,5 +202,13 @@ export class PermissionsService extends BaseService {
     } else {
       this.permissionCache = new Map<string, CacheEntry>();
     }
+    this.dashboardCache = null;
+  }
+
+  /**
+   * Clears the dashboard cache
+   */
+  clearDashboardCache(): void {
+    this.dashboardCache = null;
   }
 } 

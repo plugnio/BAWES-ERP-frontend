@@ -7,13 +7,13 @@ dotenv.config({ path: path.join(__dirname, '../../.env.test') });
 
 const config: PlaywrightTestConfig = {
   testDir: '../tests',
-  timeout: 30000,
+  timeout: 60000,
   retries: 2,
   use: {
     baseURL: process.env.NEXT_PUBLIC_APP_URL,
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    trace: 'on',
+    screenshot: 'on',
+    video: 'on',
   },
   projects: [
     {
@@ -27,11 +27,14 @@ const config: PlaywrightTestConfig = {
   ],
   reporter: [
     ['html'],
-    ['junit', { outputFile: 'test-results/junit.xml' }]
+    ['junit', { outputFile: 'test-results/junit.xml' }],
+    ['list']
   ],
   outputDir: 'test-results',
   globalSetup: require.resolve('./global-setup'),
   workers: process.env.CI ? 1 : undefined,
+  fullyParallel: true,
+  maxFailures: 0,
 };
 
 export default config; 

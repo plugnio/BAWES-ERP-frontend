@@ -43,8 +43,12 @@ export const test = base.extend({
       });
 
       // Navigate to login page using full URL
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002';
-      const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+      const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL;
+      
+      if (!baseUrl) throw new Error('NEXT_PUBLIC_APP_URL environment variable is not set');
+      if (!apiUrl) throw new Error('NEXT_PUBLIC_ERP_API_URL environment variable is not set');
+      
       console.log('Using URLs:', { baseUrl, apiUrl });
 
       await page.goto(`${baseUrl}${ROUTES.LOGIN}`);

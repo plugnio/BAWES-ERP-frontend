@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
-import { usePermissions } from '@/hooks';
+import React, { useEffect, useState, useCallback } from 'react';
+import { usePermissionCheck } from '@/hooks';
 import { useAuth } from '@/hooks/use-auth';
 import { LoadingSpinner } from '@/components/shared';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PermissionGuardProps {
   /** The permission code(s) required to access the content */
@@ -50,8 +51,31 @@ export function PermissionGuard({
   errorUI,
   requireAll = true,
 }: PermissionGuardProps) {
-  const { hasPermission, isLoading: permissionsLoading, error: permissionsError } = usePermissions();
+  const { hasPermission, isLoading: permissionsLoading, error: permissionsError } = usePermissionCheck();
   const { user, isLoading: authLoading } = useAuth();
+  const [cachedResult, setCachedResult] = useState<boolean | null>(null);
+
+  // Cache permission check result with memoization
+  const checkPermissions = useCallback(() => {
+    if (!user?.permissionBits) return false;
+
+    // Check single permission
+    if (typeof permission === 'string') {
+      return hasPermission(permission, user.permissionBits);
+    }
+
+    // Check multiple permissions
+    return requireAll
+      ? permission.every(p => hasPermission(p, user.permissionBits))
+      : permission.some(p => hasPermission(p, user.permissionBits));
+  }, [permission, user?.permissionBits, hasPermission, requireAll]);
+
+  // Update cached result when dependencies change
+  useEffect(() => {
+    if (!user?.permissionBits || permissionsLoading || authLoading) return;
+    const result = checkPermissions();
+    setCachedResult(result);
+  }, [user?.permissionBits, permissionsLoading, authLoading, checkPermissions]);
 
   // Show loading UI while permissions or auth are being checked
   if (permissionsLoading || authLoading) {
@@ -65,9 +89,11 @@ export function PermissionGuard({
   // Show error UI if there was an error loading permissions
   if (permissionsError) {
     return errorUI || (
-      <div className="flex items-center justify-center p-4 text-destructive">
-        <p>Error loading permissions: {permissionsError}</p>
-      </div>
+      <Alert variant="destructive">
+        <AlertDescription>
+          Error checking permissions: {permissionsError}
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -76,15 +102,13 @@ export function PermissionGuard({
     return <>{fallback}</>;
   }
 
-  // Check single permission
-  if (typeof permission === 'string') {
-    return hasPermission(permission, user.permissionBits) ? <>{children}</> : <>{fallback}</>;
+  // Use cached result if available
+  if (cachedResult !== null) {
+    return cachedResult ? <>{children}</> : <>{fallback}</>;
   }
 
-  // Check multiple permissions
-  const hasAccess = requireAll
-    ? permission.every(p => hasPermission(p, user.permissionBits))
-    : permission.some(p => hasPermission(p, user.permissionBits));
-
-  return hasAccess ? <>{children}</> : <>{fallback}</>;
+  // Check permissions and update cache
+  const result = checkPermissions();
+  setCachedResult(result);
+  return result ? <>{children}</> : <>{fallback}</>;
 } 

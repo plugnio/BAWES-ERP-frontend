@@ -7,5 +7,5 @@ export const ROUTES = {
 
 // API Endpoints
 export const API_ENDPOINTS = {
-  ROLES: '/api/roles'
+  ROLES: '/permissions/dashboard'
 } as const; 

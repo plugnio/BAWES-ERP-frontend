@@ -21,7 +21,7 @@ import {
 import { arrayMove } from '@dnd-kit/sortable';
 import { RoleList } from './role-list';
 import { PermissionDashboard } from './permission-dashboard';
-import type { Role } from '@/services/role.service';
+import type { Role, RoleOrderUpdate } from '@/services/role.service';
 
 interface PermissionExplorerProps {
   className?: string;
@@ -35,6 +35,7 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
     loadDashboard,
     updateRoleOrder,
     updateRolePermissions,
+    createRole,
   } = usePermissions();
 
   const [selectedRoleId, setSelectedRoleId] = React.useState<string | undefined>();
@@ -50,52 +51,35 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
     })
   );
 
+  // Only update roles when dashboard changes
   React.useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
-
-  React.useEffect(() => {
-    if (dashboard) {
-      // Extract and sort roles by sortOrder
-      const sortedRoles = [...dashboard.roles].sort((a, b) => 
-        (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
-      );
-      setRoles(sortedRoles);
+    if (dashboard?.roles) {
+      setRoles(dashboard.roles);
     }
-  }, [dashboard]);
+  }, [dashboard?.roles]);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    
-    if (!over || active.id === over.id) return;
 
-    const oldIndex = roles.findIndex(role => role.id === active.id);
-    const newIndex = roles.findIndex(role => role.id === over.id);
+    if (over && active.id !== over.id) {
+      const oldIndex = roles.findIndex((role) => role.id === active.id);
+      const newIndex = roles.findIndex((role) => role.id === over.id);
 
-    // Update local state immediately for smooth UI
-    const newRoles = arrayMove(roles, oldIndex, newIndex);
-    
-    // Update sort orders
-    const updates = newRoles.map((role, index) => ({
-      ...role,
-      sortOrder: index,
-    }));
+      const newRoles = arrayMove(roles, oldIndex, newIndex);
+      setRoles(newRoles);
 
-    setRoles(updates);
-
-    // Update on backend
-    try {
-      setUpdateError(null);
-      await updateRoleOrder(
-        updates.map(role => ({
-          roleId: role.id,
-          sortOrder: role.sortOrder ?? 0,
-        }))
-      );
-    } catch (err) {
-      // Rollback on error
-      setRoles(roles);
-      setUpdateError(err instanceof Error ? err.message : 'Failed to update role order');
+      try {
+        setUpdateError(null);
+        await updateRoleOrder(
+          newRoles.map((role, index) => ({
+            roleId: role.id,
+            sortOrder: index,
+          }))
+        );
+      } catch (error) {
+        console.error('Failed to update role order:', error);
+        setUpdateError('Failed to update role order. Please try again.');
+      }
     }
   };
 
@@ -105,55 +89,62 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
     try {
       setUpdateError(null);
       await updateRolePermissions(selectedRoleId, permissions);
-    } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : 'Failed to update permissions');
+    } catch (error) {
+      console.error('Failed to update permissions:', error);
+      setUpdateError('Failed to update permissions. Please try again.');
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center p-4" data-testid="loading-spinner">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  if (error || updateError) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>{error || updateError}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (!dashboard) {
-    return null;
-  }
+  const handleCreateRole = async (name: string, description?: string) => {
+    try {
+      setUpdateError(null);
+      await createRole({ name, description });
+    } catch (error) {
+      console.error('Failed to create role:', error);
+      setUpdateError('Failed to create role. Please try again.');
+    }
+  };
 
   return (
     <div className={className}>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <DndContext
-          sensors={sensors}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={roles.map(role => role.id)}
-            strategy={verticalListSortingStrategy}
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {updateError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{updateError}</AlertDescription>
+        </Alert>
+      )}
+      {isLoading ? (
+        <LoadingSpinner />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <DndContext
+            sensors={sensors}
+            onDragEnd={handleDragEnd}
           >
-            <RoleList
-              roles={roles}
-              selectedRoleId={selectedRoleId}
-              onRoleSelect={setSelectedRoleId}
+            <SortableContext
+              items={roles.map(role => role.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <RoleList
+                roles={roles}
+                selectedRoleId={selectedRoleId}
+                onRoleSelect={setSelectedRoleId}
+                onCreateRole={handleCreateRole}
+              />
+            </SortableContext>
+          </DndContext>
+          {selectedRoleId && (
+            <PermissionDashboard
+              roleId={selectedRoleId}
+              onPermissionsChange={handlePermissionsChange}
             />
-          </SortableContext>
-        </DndContext>
-
-        <PermissionDashboard
-          roleId={selectedRoleId}
-          onPermissionsChange={handlePermissionsChange}
-        />
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 } 

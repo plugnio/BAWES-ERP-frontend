@@ -16,12 +16,14 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 import type { Role } from '@/services/role.service';
+import { RoleDialog } from './role-dialog';
 
 interface RoleListProps {
   roles: Role[];
   onRoleSelect?: (roleId: string) => void;
   selectedRoleId?: string;
   className?: string;
+  onCreateRole?: (name: string, description?: string) => Promise<void>;
 }
 
 function SortableRole({ role, isSelected, onSelect }: {
@@ -79,12 +81,24 @@ export function RoleList({
   onRoleSelect,
   selectedRoleId,
   className,
+  onCreateRole,
 }: RoleListProps) {
+  const handleCreateRole = async ({ name, description }: { name: string; description?: string }) => {
+    if (onCreateRole) {
+      await onCreateRole(name, description);
+    }
+  };
+
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle>Roles</CardTitle>
-        <CardDescription>Drag to reorder roles and click to manage permissions</CardDescription>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle role="heading" aria-level={2}>Roles</CardTitle>
+            <CardDescription>Drag to reorder roles and click to manage permissions</CardDescription>
+          </div>
+          {onCreateRole && <RoleDialog onSubmit={handleCreateRole} />}
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {roles.map((role) => (
