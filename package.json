@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
     "@bawes/erp-api-sdk": "git+ssh://git@github.com/plugnio/BAWES-ERP-sdk.git#main",
@@ -46,11 +49,13 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.49.1",
     "@shadcn/ui": "^0.0.4",
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "dotenv": "^16.4.7",
     "eslint": "^9",
     "eslint-config-next": "15.1.0",
     "postcss": "^8",

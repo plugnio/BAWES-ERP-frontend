@@ -1,3 +1,9 @@
+# Required process
+- Follow test driven development process. Before writing any code, write the test first.
+- Confirm the test passes before delivering your work as completed. Keep improving the tests until they pass.
+- Do not delete existing tests and code just to make things pass. Deletion should only happen when it is absolutely necessary or when it is a part of a refactoring.
+
+# Rules
 - IMPORTANT: All token handling is from sdk/api.ts and the bawes sdk
 - Use BAWES SDK to generate code and interact with the backend ERP API (node_modules/@bawes/erp-api-sdk).
 - Whenenever you do any code changes, validate to confirm there are no linting errors and keep fixing until you get it right. Wait for linting to complete, Verify there are no errors, Only then share the solution
