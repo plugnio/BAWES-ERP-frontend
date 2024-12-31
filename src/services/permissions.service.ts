@@ -1,6 +1,7 @@
 import { Decimal } from 'decimal.js';
 import { BaseService } from './base.service';
 import type { AxiosResponse } from 'axios';
+import type { Role } from './role.service';
 
 /**
  * Permission interface representing a single permission
@@ -25,10 +26,16 @@ export interface PermissionCategory {
 }
 
 /**
- * Dashboard data containing permission categories
+ * Dashboard data containing permission categories and roles
  */
 export interface PermissionDashboard {
   categories: PermissionCategory[];
+  roles: Role[];
+  stats: {
+    totalPermissions: number;
+    totalRoles: number;
+    systemRoles: number;
+  };
 }
 
 /**

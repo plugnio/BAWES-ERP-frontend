@@ -21,7 +21,7 @@ import {
 import { arrayMove } from '@dnd-kit/sortable';
 import { RoleList } from './role-list';
 import { PermissionDashboard } from './permission-dashboard';
-import type { Role } from '@/services/permissions.service';
+import type { Role } from '@/services/role.service';
 
 interface PermissionExplorerProps {
   className?: string;
@@ -112,7 +112,7 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-4">
+      <div className="flex justify-center p-4" data-testid="loading-spinner">
         <LoadingSpinner size="lg" />
       </div>
     );

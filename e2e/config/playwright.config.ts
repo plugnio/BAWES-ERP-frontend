@@ -1,15 +1,16 @@
 import { PlaywrightTestConfig } from '@playwright/test';
 import dotenv from 'dotenv';
+import path from 'path';
 
-// Load test environment variables
-dotenv.config({ path: '.env.test' });
+// Load test environment variables from the workspace root
+dotenv.config({ path: path.join(__dirname, '../../.env.test') });
 
 const config: PlaywrightTestConfig = {
   testDir: '../tests',
   timeout: 30000,
   retries: 2,
   use: {
-    baseURL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    baseURL: process.env.NEXT_PUBLIC_APP_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -28,11 +29,8 @@ const config: PlaywrightTestConfig = {
     ['html'],
     ['junit', { outputFile: 'test-results/junit.xml' }]
   ],
-  // Folder for test artifacts (screenshots, videos, etc.)
   outputDir: 'test-results',
-  // Global setup
   globalSetup: require.resolve('./global-setup'),
-  // Workers
   workers: process.env.CI ? 1 : undefined,
 };
 

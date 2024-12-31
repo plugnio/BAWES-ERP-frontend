@@ -36,7 +36,7 @@ export const metadata: Metadata = {
  */
 export default function DashboardPage() {
   return (
-    <div className="container space-y-8 p-8">
+    <div data-testid="dashboard" className="container space-y-8 p-8">
       {/* Welcome header section */}
       <div className="flex items-center justify-between space-y-2">
         <div>

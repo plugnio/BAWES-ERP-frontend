@@ -15,7 +15,7 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
-import type { Role } from '@/services/permissions.service';
+import type { Role } from '@/services/role.service';
 
 interface RoleListProps {
   roles: Role[];
