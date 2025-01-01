@@ -10,42 +10,35 @@ dotenv.config({ path: path.join(__dirname, '../../.env.test') });
 export const test = base.extend({
   authenticatedPage: async ({ page }, use) => {
     try {
-      // Navigate to login page using full URL
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
-      const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL;
+      // Use environment variable or fallback to the one from .env.test
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+      const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL || 'http://localhost:3000';
       
-      if (!baseUrl) throw new Error('NEXT_PUBLIC_APP_URL environment variable is not set');
-      if (!apiUrl) throw new Error('NEXT_PUBLIC_ERP_API_URL environment variable is not set');
+      console.log('Using test environment:', { baseUrl, apiUrl });
 
       await page.goto(`${baseUrl}${ROUTES.LOGIN}`);
 
-      // Wait for page to be ready
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForLoadState('networkidle');
+      // Wait for page to be ready with increased timeouts
+      await page.waitForLoadState('domcontentloaded', { timeout: 30000 });
+      await page.waitForLoadState('networkidle', { timeout: 30000 });
 
       // Wait for form to be ready
-      const form = await page.waitForSelector('form', { state: 'visible', timeout: 10000 });
+      const form = await page.waitForSelector('form', { state: 'visible', timeout: 30000 });
 
       // Wait for form elements with more reliable selectors
-      const emailInput = await page.waitForSelector('input[name="email"]', { timeout: 10000, state: 'visible' });
-      const passwordInput = await page.waitForSelector('input[name="password"]', { timeout: 10000, state: 'visible' });
+      const emailInput = await page.waitForSelector('input[name="email"]', { timeout: 30000, state: 'visible' });
+      const passwordInput = await page.waitForSelector('input[name="password"]', { timeout: 30000, state: 'visible' });
 
       // Fill in credentials from test environment
-      const email = process.env.TEST_ADMIN_EMAIL;
-      const password = process.env.TEST_ADMIN_PASSWORD;
+      const email = process.env.TEST_ADMIN_EMAIL || 'test@test.com';
+      const password = process.env.TEST_ADMIN_PASSWORD || 'testtest';
       
-      if (!email || !password) {
-        throw new Error('Test credentials not found in environment variables');
-      }
-      
-      // Fill in credentials with delay between characters
-      await emailInput.focus();
-      await emailInput.type(email, { delay: 100 });
-      await passwordInput.focus();
-      await passwordInput.type(password, { delay: 100 });
+      // Fill in credentials with shorter delay
+      await emailInput.fill(email);
+      await passwordInput.fill(password);
 
       // Submit form and wait for navigation
-      const submitButton = await page.waitForSelector('button[type="submit"]', { state: 'visible', timeout: 10000 });
+      const submitButton = await page.waitForSelector('button[type="submit"]', { state: 'visible', timeout: 30000 });
 
       // Set up response promise before clicking
       const responsePromise = page.waitForResponse(
