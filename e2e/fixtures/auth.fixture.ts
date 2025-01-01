@@ -17,12 +17,12 @@ export const test = base.extend({
       await page.goto(`${baseUrl}${ROUTES.LOGIN}`);
 
       // Wait for page to be ready with increased timeouts
-      await page.waitForLoadState('domcontentloaded', { timeout: 30000 });
-      await page.waitForLoadState('networkidle', { timeout: 30000 });
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Wait for form elements with more reliable selectors
-      const emailInput = await page.waitForSelector('input[name="email"]', { timeout: 30000, state: 'visible' });
-      const passwordInput = await page.waitForSelector('input[name="password"]', { timeout: 30000, state: 'visible' });
+      const emailInput = await page.waitForSelector('input[name="email"]', { state: 'visible' });
+      const passwordInput = await page.waitForSelector('input[name="password"]', { state: 'visible' });
 
       // Fill in credentials from test environment
       const email = process.env.TEST_ADMIN_EMAIL || 'test@test.com';
@@ -33,7 +33,7 @@ export const test = base.extend({
       await passwordInput.fill(password);
 
       // Submit form and wait for navigation
-      const submitButton = await page.waitForSelector('button[type="submit"]', { state: 'visible', timeout: 30000 });
+      const submitButton = await page.waitForSelector('button[type="submit"]', { state: 'visible'});
 
       // Set up response promise before clicking
       const responsePromise = page.waitForResponse(
@@ -60,10 +60,10 @@ export const test = base.extend({
       }
 
       // Wait for navigation to complete
-      await page.waitForURL('**/dashboard', { timeout: 30000 });
+      await page.waitForURL('**/dashboard');
 
       // Wait for dashboard content
-      await page.waitForSelector('[data-testid="dashboard"]', { timeout: 30000 });
+      await page.waitForSelector('[data-testid="dashboard"]');
 
       // Use the authenticated page
       await use(page);
