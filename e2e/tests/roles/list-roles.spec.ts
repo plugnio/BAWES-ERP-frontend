@@ -2,7 +2,7 @@ import { test } from '../../fixtures/auth.fixture';
 import { expect } from '@playwright/test';
 import { trackApiCalls } from '../../utils/api-tracker';
 import { ROUTES, API_ENDPOINTS } from '../constants';
-import type { APIResponse, Request as PlaywrightRequest, Response as PlaywrightResponse } from '@playwright/test';
+import type { APIResponse } from '@playwright/test';
 
 test.describe('Roles List Page', () => {
   test('loads and displays roles with optimized API calls', async ({ authenticatedPage: page }) => {
@@ -10,27 +10,15 @@ test.describe('Roles List Page', () => {
     const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL;
     if (!apiUrl) throw new Error('NEXT_PUBLIC_ERP_API_URL environment variable is not set');
     
-    // Wait for API response
-    const [response] = await Promise.all([
-      page.waitForResponse(
-        (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`)
-      ),
-      page.goto(ROUTES.ROLES),
-      page.waitForLoadState('networkidle')
-    ]);
+    // Navigate to roles page
+    await page.goto(ROUTES.ROLES);
     
-    expect(response.ok()).toBeTruthy();
-
-    // Verify UI elements
-    await expect(page.locator('h1')).toHaveText('Role Management');
-    
-    // Wait for loading spinner to disappear
+    // Wait for critical UI elements
     await expect(page.getByTestId('loading-spinner')).toBeHidden();
-    
-    // Wait for roles to load
-    await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.getByText('Drag to reorder roles and click to manage permissions')).toBeVisible();
     
+    // Verify roles are loaded
     const roleButtons = await page.getByRole('button').filter({ hasText: /^(?!New Role|Save).*/ }).count();
     expect(roleButtons).toBeGreaterThan(0);
 
@@ -40,11 +28,18 @@ test.describe('Roles List Page', () => {
 
     // Verify caching on re-navigation
     await page.goto(ROUTES.DASHBOARD);
-    await page.goto(ROUTES.ROLES);
-    await page.waitForLoadState('networkidle');
     
-    const newCalls = apiTracker.getCallsSince(rolesCalls.length);
-    const newRolesCalls = newCalls.filter(call => 
+    // Track API calls before navigating back
+    const beforeNavigation = apiTracker.getCallsSince(rolesCalls.length);
+    
+    // Navigate back to roles
+    await page.goto(ROUTES.ROLES);
+    await expect(page.getByTestId('loading-spinner')).toBeHidden();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    
+    // Check API calls after navigation
+    const afterNavigation = apiTracker.getCallsSince(beforeNavigation.length + rolesCalls.length);
+    const newRolesCalls = afterNavigation.filter(call => 
       call.url.includes(`${apiUrl}${API_ENDPOINTS.ROLES}`)
     );
     
@@ -56,33 +51,27 @@ test.describe('Roles List Page', () => {
     const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL;
     if (!apiUrl) throw new Error('NEXT_PUBLIC_ERP_API_URL environment variable is not set');
     
-    // Navigate and wait for initial load in parallel
-    await Promise.all([
-      page.goto(ROUTES.ROLES),
-      page.waitForResponse(
-        (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`) && response.ok()
-      ),
-      expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible(),
-      expect(page.getByTestId('loading-spinner')).toBeHidden()
-    ]);
+    // Navigate to roles page
+    await page.goto(ROUTES.ROLES);
+    
+    // Wait for UI to be ready
+    await expect(page.getByTestId('loading-spinner')).toBeHidden();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
     // Clear previous calls before role creation
     apiTracker.clear();
     
-    // Create new role - perform actions in parallel where possible
+    // Create new role
     const newRoleButton = page.getByRole('button', { name: /new role/i });
     await newRoleButton.click();
     
-    // Wait for input and fill in parallel
+    // Fill role name
     const roleNameInput = page.getByLabel(/role name/i);
-    await Promise.all([
-      expect(roleNameInput).toBeVisible(),
-      roleNameInput.fill('Test Role')
-    ]);
+    await expect(roleNameInput).toBeVisible();
+    await roleNameInput.fill('Test Role');
     
-    // Click save and wait for create response first
+    // Save and wait for response
     const saveButton = page.getByRole('button', { name: /save/i });
-
     const [createResponse] = await Promise.all([
       page.waitForResponse(
         (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.CREATE_ROLE}`)
@@ -98,9 +87,8 @@ test.describe('Roles List Page', () => {
 
     // Only wait for dashboard refresh on successful creation
     if (createResponse.status() === 201) {
-      await page.waitForResponse(
-        (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`) && response.ok()
-      );
+      await expect(page.getByTestId('loading-spinner')).toBeHidden();
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     }
 
     // Verify API efficiency

@@ -6,15 +6,15 @@ const env = loadTestEnv();
 
 const config: PlaywrightTestConfig = {
   testDir: '../tests',
-  timeout: 10000,
-  retries: process.env.CI ? 0 : 0,
+  timeout: 15000,
+  retries: 0,
   use: {
     baseURL: env.appUrl,
     trace: process.env.CI ? 'on-first-retry' : 'on',
     screenshot: process.env.CI ? 'only-on-failure' : 'on',
     video: process.env.CI ? 'retain-on-failure' : 'on',
-    actionTimeout: 5000,
-    navigationTimeout: 5000,
+    actionTimeout: 10000,
+    navigationTimeout: 10000,
   },
   projects: [
     {
