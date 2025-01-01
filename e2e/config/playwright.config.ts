@@ -27,7 +27,10 @@ const config: PlaywrightTestConfig = {
     },
   ],
   reporter: [
-    ['html', { outputFolder: '../test-output/html-report' }],
+    ['html', { 
+      outputFolder: '../test-output/html-report',
+      open: 'never'
+    }],
     ['junit', { outputFile: '../test-output/junit/results.xml' }],
     ['list']
   ],
