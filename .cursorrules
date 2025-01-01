@@ -1,5 +1,5 @@
 # Required process
-- Run e2e playwright tests in headless mode.
+- Run e2e playwright tests in headless mode via "test:e2e:cli".
 - Follow test driven development process. Before writing any code, write the test first.
 - Confirm the test passes before delivering your work as completed. Keep improving the tests until they pass.
 - Do not delete existing tests and code just to make things pass. Deletion should only happen when it is absolutely necessary or when it is a part of a refactoring.
