@@ -10,16 +10,21 @@ const config: PlaywrightTestConfig = {
   retries: process.env.CI ? 2 : 1,
   use: {
     baseURL: env.appUrl,
-    trace: 'on',
-    screenshot: 'on',
-    video: 'on',
+    trace: process.env.CI ? 'on-first-retry' : 'on',
+    screenshot: process.env.CI ? 'only-on-failure' : 'on',
+    video: process.env.CI ? 'retain-on-failure' : 'on',
     actionTimeout: 30000,
     navigationTimeout: 30000,
   },
   projects: [
     {
       name: 'Chrome',
-      use: { browserName: 'chromium' },
+      use: { 
+        browserName: 'chromium',
+        launchOptions: {
+          args: ['--disable-dev-shm-usage']
+        }
+      },
     },
     {
       name: 'Firefox',
@@ -37,8 +42,8 @@ const config: PlaywrightTestConfig = {
   outputDir: '../test-output/test-results',
   globalSetup: require.resolve('./global-setup'),
   workers: process.env.CI ? 1 : undefined,
-  fullyParallel: true,
-  maxFailures: 0,
+  fullyParallel: !process.env.CI,
+  maxFailures: process.env.CI ? 10 : 0,
 };
 
 export default config; 
