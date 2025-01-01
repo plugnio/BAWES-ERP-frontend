@@ -16,25 +16,19 @@ export const test = base.extend({
       
       if (!baseUrl) throw new Error('NEXT_PUBLIC_APP_URL environment variable is not set');
       if (!apiUrl) throw new Error('NEXT_PUBLIC_ERP_API_URL environment variable is not set');
-      
-      console.log('Using URLs:', { baseUrl, apiUrl });
 
       await page.goto(`${baseUrl}${ROUTES.LOGIN}`);
-      console.log('Successfully navigated to login page');
 
       // Wait for page to be ready
       await page.waitForLoadState('domcontentloaded');
       await page.waitForLoadState('networkidle');
-      console.log('Page loaded, waiting for form elements');
 
       // Wait for form to be ready
       const form = await page.waitForSelector('form', { state: 'visible', timeout: 10000 });
-      console.log('Form found');
 
       // Wait for form elements with more reliable selectors
       const emailInput = await page.waitForSelector('input[name="email"]', { timeout: 10000, state: 'visible' });
       const passwordInput = await page.waitForSelector('input[name="password"]', { timeout: 10000, state: 'visible' });
-      console.log('Form elements found');
 
       // Fill in credentials from test environment
       const email = process.env.TEST_ADMIN_EMAIL;
@@ -44,26 +38,18 @@ export const test = base.extend({
         throw new Error('Test credentials not found in environment variables');
       }
       
-      console.log('Using credentials:', { email, password: '********' });
-      
       // Fill in credentials with delay between characters
       await emailInput.focus();
       await emailInput.type(email, { delay: 100 });
       await passwordInput.focus();
       await passwordInput.type(password, { delay: 100 });
-      console.log('Credentials filled');
 
       // Submit form and wait for navigation
-      console.log('Submitting login form...');
       const submitButton = await page.waitForSelector('button[type="submit"]', { state: 'visible', timeout: 10000 });
 
       // Set up response promise before clicking
       const responsePromise = page.waitForResponse(
-        response => {
-          const isLoginUrl = response.url().includes(`${apiUrl}/auth/login`);
-          console.log('Checking response:', { url: response.url(), isLoginUrl });
-          return isLoginUrl;
-        },
+        response => response.url().includes(`${apiUrl}/auth/login`),
         { timeout: 30000 }
       );
 
@@ -73,7 +59,6 @@ export const test = base.extend({
       // Wait for API response
       const loginResponse = await responsePromise;
       const status = loginResponse.status();
-      console.log('Login API response received:', { status });
 
       if (status !== 200) {
         let errorBody = '';
@@ -88,11 +73,9 @@ export const test = base.extend({
 
       // Wait for navigation to complete
       await page.waitForURL('**/dashboard', { timeout: 30000 });
-      console.log('Navigation to dashboard completed');
 
       // Wait for dashboard content
       await page.waitForSelector('[data-testid="dashboard"]', { timeout: 30000 });
-      console.log('Dashboard content loaded');
 
       // Use the authenticated page
       await use(page);

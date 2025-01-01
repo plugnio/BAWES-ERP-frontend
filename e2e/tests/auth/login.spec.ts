@@ -20,11 +20,7 @@ test.describe('Authentication', () => {
 
     // Set up response promise before clicking
     const responsePromise = page.waitForResponse(
-      response => {
-        const isLoginUrl = response.url().includes(`${env.apiUrl}/auth/login`);
-        console.log('Checking response:', { url: response.url(), isLoginUrl });
-        return isLoginUrl;
-      }
+      response => response.url().includes(`${env.apiUrl}/auth/login`)
     );
 
     // Submit form
@@ -33,7 +29,6 @@ test.describe('Authentication', () => {
     // Wait for API response
     const loginResponse = await responsePromise;
     const status = loginResponse.status();
-    console.log('Login API response received:', { status });
 
     if (status !== 200) {
       let errorBody = '';
@@ -71,11 +66,7 @@ test.describe('Authentication', () => {
 
     // Set up response promise before clicking
     const responsePromise = page.waitForResponse(
-      response => {
-        const isLoginUrl = response.url().includes(`${env.apiUrl}/auth/login`);
-        console.log('Checking response:', { url: response.url(), isLoginUrl });
-        return isLoginUrl;
-      }
+      response => response.url().includes(`${env.apiUrl}/auth/login`)
     );
 
     // Submit form
@@ -83,8 +74,6 @@ test.describe('Authentication', () => {
 
     // Wait for API response
     const loginResponse = await responsePromise;
-    const status = loginResponse.status();
-    console.log('Login API response received:', { status });
 
     // Wait for error message
     const errorMessage = await page.waitForSelector('[role="alert"]');

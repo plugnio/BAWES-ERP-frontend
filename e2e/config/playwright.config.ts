@@ -6,7 +6,7 @@ const env = loadTestEnv();
 
 const config: PlaywrightTestConfig = {
   testDir: '../tests',
-  timeout: 60000,
+  timeout: 20000,
   retries: 2,
   use: {
     baseURL: env.appUrl,
