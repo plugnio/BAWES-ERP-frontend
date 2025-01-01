@@ -7,35 +7,29 @@ import type { APIResponse } from '@playwright/test';
 test.describe('Roles List Page', () => {
   test('loads and displays roles with optimized API calls', async ({ authenticatedPage: page }) => {
     const apiTracker = trackApiCalls(page);
-    
-    // Navigate to roles page using base URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
     const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL;
-    
-    if (!baseUrl) throw new Error('NEXT_PUBLIC_APP_URL environment variable is not set');
     if (!apiUrl) throw new Error('NEXT_PUBLIC_ERP_API_URL environment variable is not set');
     
     // Wait for API response
     const [response] = await Promise.all([
       page.waitForResponse(
-        (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`),
-        { timeout: 60000 }
+        (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`)
       ),
-      page.goto(`${baseUrl}${ROUTES.ROLES}`),
+      page.goto(ROUTES.ROLES),
       page.waitForLoadState('networkidle')
     ]);
     
     expect(response.ok()).toBeTruthy();
 
     // Verify UI elements
-    await expect(page.locator('h1')).toHaveText('Role Management', { timeout: 60000 });
+    await expect(page.locator('h1')).toHaveText('Role Management');
     
     // Wait for loading spinner to disappear
-    await expect(page.getByTestId('loading-spinner')).toBeHidden({ timeout: 60000 });
+    await expect(page.getByTestId('loading-spinner')).toBeHidden();
     
     // Wait for roles to load
-    await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible({ timeout: 60000 });
-    await expect(page.getByText('Drag to reorder roles and click to manage permissions')).toBeVisible({ timeout: 60000 });
+    await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible();
+    await expect(page.getByText('Drag to reorder roles and click to manage permissions')).toBeVisible();
     
     const roleButtons = await page.getByRole('button').filter({ hasText: /^(?!New Role|Save).*/ }).count();
     expect(roleButtons).toBeGreaterThan(0);
@@ -45,8 +39,8 @@ test.describe('Roles List Page', () => {
     expect(rolesCalls.length, 'Multiple calls to roles endpoint detected').toBe(1);
 
     // Verify caching on re-navigation
-    await page.goto(`${baseUrl}${ROUTES.DASHBOARD}`);
-    await page.goto(`${baseUrl}${ROUTES.ROLES}`);
+    await page.goto(ROUTES.DASHBOARD);
+    await page.goto(ROUTES.ROLES);
     await page.waitForLoadState('networkidle');
     
     const newCalls = apiTracker.getCallsSince(rolesCalls.length);
@@ -58,51 +52,60 @@ test.describe('Roles List Page', () => {
   });
 
   test('efficiently handles role creation', async ({ authenticatedPage: page }) => {
+    console.log('Starting role creation test');
     const apiTracker = trackApiCalls(page);
-    
-    // Navigate to roles page using base URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
     const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL;
-    
-    if (!baseUrl) throw new Error('NEXT_PUBLIC_APP_URL environment variable is not set');
     if (!apiUrl) throw new Error('NEXT_PUBLIC_ERP_API_URL environment variable is not set');
     
-    // Wait for API response
-    const [response] = await Promise.all([
+    console.log('Navigating to roles page');
+    // Navigate and wait for initial load in parallel
+    await Promise.all([
+      page.goto(ROUTES.ROLES),
       page.waitForResponse(
-        (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`),
-        { timeout: 60000 }
+        (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`) && response.ok()
       ),
-      page.goto(`${baseUrl}${ROUTES.ROLES}`),
-      page.waitForLoadState('networkidle')
+      expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible(),
+      expect(page.getByTestId('loading-spinner')).toBeHidden()
     ]);
-    
-    expect(response.ok()).toBeTruthy();
+    console.log('Initial page load complete');
 
-    // Wait for loading spinner to disappear
-    await expect(page.getByTestId('loading-spinner')).toBeHidden({ timeout: 60000 });
-    
-    // Wait for page to be ready
-    await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible({ timeout: 60000 });
-    
-    // Clear previous calls
+    // Clear previous calls before role creation
     apiTracker.clear();
     
-    // Create new role
+    // Create new role - perform actions in parallel where possible
+    console.log('Clicking new role button');
     const newRoleButton = page.getByRole('button', { name: /new role/i });
-    await expect(newRoleButton).toBeVisible({ timeout: 60000 });
     await newRoleButton.click();
     
+    // Wait for input and fill in parallel
+    console.log('Filling role name');
     const roleNameInput = page.getByLabel(/role name/i);
-    await expect(roleNameInput).toBeVisible({ timeout: 60000 });
-    await roleNameInput.fill('Test Role');
+    await Promise.all([
+      expect(roleNameInput).toBeVisible(),
+      roleNameInput.fill('Test Role')
+    ]);
     
+    // Click save and wait for POST response
+    console.log('Clicking save button');
     const saveButton = page.getByRole('button', { name: /save/i });
-    await expect(saveButton).toBeVisible({ timeout: 60000 });
-    await saveButton.click();
+    await Promise.all([
+      page.waitForResponse(
+        (response: APIResponse) => 
+          response.url().includes(`${apiUrl}${API_ENDPOINTS.CREATE_ROLE}`) && 
+          response.ok()
+      ),
+      page.waitForResponse(
+        (response: APIResponse) => 
+          response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`) && 
+          response.ok()
+      ),
+      saveButton.click()
+    ]);
+    console.log('Save complete');
 
     // Verify API efficiency
     const createCalls = apiTracker.getCallsByMethod('POST');
     expect(createCalls.length, 'Multiple create calls detected').toBe(1);
+    console.log('Test complete');
   });
 }); 
