@@ -14,8 +14,6 @@ export const test = base.extend({
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
       const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL || 'http://localhost:3000';
       
-      console.log('Using test environment:', { baseUrl, apiUrl });
-
       await page.goto(`${baseUrl}${ROUTES.LOGIN}`);
 
       // Wait for page to be ready with increased timeouts
