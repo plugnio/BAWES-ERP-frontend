@@ -43,6 +43,5 @@ yarn-error.log*
 next-env.d.ts
 
 # Test env
-test-results/
-playwright-report/
+e2e/test-output/
 debug.log

@@ -25,11 +25,11 @@ const config: PlaywrightTestConfig = {
     },
   ],
   reporter: [
-    ['html'],
-    ['junit', { outputFile: 'test-results/junit.xml' }],
+    ['html', { outputFolder: '../test-output/html-report' }],
+    ['junit', { outputFile: '../test-output/junit/results.xml' }],
     ['list']
   ],
-  outputDir: 'test-results',
+  outputDir: '../test-output/test-results',
   globalSetup: require.resolve('./global-setup'),
   workers: process.env.CI ? 1 : undefined,
   fullyParallel: true,

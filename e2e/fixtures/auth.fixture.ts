@@ -130,15 +130,6 @@ export const test = base.extend({
       await use(page);
     } catch (error) {
       console.error('Authentication failed:', error);
-      
-      // Take a screenshot on error
-      try {
-        await page.screenshot({ path: 'test-results/auth-error.png' });
-        console.log('Error screenshot saved to test-results/auth-error.png');
-      } catch (screenshotError) {
-        console.error('Failed to take error screenshot:', screenshotError);
-      }
-      
       throw error;
     }
   },
