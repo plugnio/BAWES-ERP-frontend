@@ -10,38 +10,6 @@ dotenv.config({ path: path.join(__dirname, '../../.env.test') });
 export const test = base.extend({
   authenticatedPage: async ({ page }, use) => {
     try {
-      // Enable request/response logging for all requests
-      page.on('request', request => {
-        console.log('Request:', {
-          url: request.url(),
-          method: request.method(),
-          headers: request.headers(),
-          postData: request.postData()
-        });
-      });
-
-      page.on('response', async response => {
-        const status = response.status();
-        const url = response.url();
-        let responseBody = '';
-        
-        try {
-          if (response.headers()['content-type']?.includes('application/json')) {
-            responseBody = JSON.stringify(await response.json());
-          }
-        } catch (e) {
-          responseBody = 'Could not parse response body';
-        }
-
-        console.log('Response:', {
-          url,
-          status,
-          statusText: response.statusText(),
-          headers: response.headers(),
-          body: responseBody
-        });
-      });
-
       // Navigate to login page using full URL
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
       const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL;

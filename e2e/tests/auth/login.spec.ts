@@ -6,38 +6,6 @@ test.describe('Authentication', () => {
   test('should login successfully with valid credentials', async ({ page }) => {
     const env = loadTestEnv();
     
-    // Enable request/response logging
-    page.on('request', request => {
-      console.log('Request:', {
-        url: request.url(),
-        method: request.method(),
-        headers: request.headers(),
-        postData: request.postData()
-      });
-    });
-
-    page.on('response', async response => {
-      const status = response.status();
-      const url = response.url();
-      let responseBody = '';
-      
-      try {
-        if (response.headers()['content-type']?.includes('application/json')) {
-          responseBody = JSON.stringify(await response.json());
-        }
-      } catch (e) {
-        responseBody = 'Could not parse response body';
-      }
-
-      console.log('Response:', {
-        url,
-        status,
-        statusText: response.statusText(),
-        headers: response.headers(),
-        body: responseBody
-      });
-    });
-    
     // Navigate to login page
     await page.goto(`${env.appUrl}${ROUTES.LOGIN}`);
     
@@ -88,38 +56,6 @@ test.describe('Authentication', () => {
 
   test('should show error with invalid credentials', async ({ page }) => {
     const env = loadTestEnv();
-    
-    // Enable request/response logging
-    page.on('request', request => {
-      console.log('Request:', {
-        url: request.url(),
-        method: request.method(),
-        headers: request.headers(),
-        postData: request.postData()
-      });
-    });
-
-    page.on('response', async response => {
-      const status = response.status();
-      const url = response.url();
-      let responseBody = '';
-      
-      try {
-        if (response.headers()['content-type']?.includes('application/json')) {
-          responseBody = JSON.stringify(await response.json());
-        }
-      } catch (e) {
-        responseBody = 'Could not parse response body';
-      }
-
-      console.log('Response:', {
-        url,
-        status,
-        statusText: response.statusText(),
-        headers: response.headers(),
-        body: responseBody
-      });
-    });
     
     // Navigate to login page
     await page.goto(`${env.appUrl}${ROUTES.LOGIN}`);
