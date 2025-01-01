@@ -52,12 +52,10 @@ test.describe('Roles List Page', () => {
   });
 
   test('efficiently handles role creation', async ({ authenticatedPage: page }) => {
-    console.log('Starting role creation test');
     const apiTracker = trackApiCalls(page);
     const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL;
     if (!apiUrl) throw new Error('NEXT_PUBLIC_ERP_API_URL environment variable is not set');
     
-    console.log('Navigating to roles page');
     // Navigate and wait for initial load in parallel
     await Promise.all([
       page.goto(ROUTES.ROLES),
@@ -67,18 +65,15 @@ test.describe('Roles List Page', () => {
       expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible(),
       expect(page.getByTestId('loading-spinner')).toBeHidden()
     ]);
-    console.log('Initial page load complete');
 
     // Clear previous calls before role creation
     apiTracker.clear();
     
     // Create new role - perform actions in parallel where possible
-    console.log('Clicking new role button');
     const newRoleButton = page.getByRole('button', { name: /new role/i });
     await newRoleButton.click();
     
     // Wait for input and fill in parallel
-    console.log('Filling role name');
     const roleNameInput = page.getByLabel(/role name/i);
     await Promise.all([
       expect(roleNameInput).toBeVisible(),
@@ -86,34 +81,14 @@ test.describe('Roles List Page', () => {
     ]);
     
     // Click save and wait for create response first
-    console.log('Clicking save button');
     const saveButton = page.getByRole('button', { name: /save/i });
-
-    // Log all requests
-    page.on('request', (request: PlaywrightRequest) => {
-      console.log(`Request: ${request.method()} ${request.url()}`);
-      if (request.url().includes(`${apiUrl}${API_ENDPOINTS.CREATE_ROLE}`)) {
-        console.log('Request body:', request.postData());
-      }
-    });
-    page.on('response', (response: PlaywrightResponse) => {
-      console.log(`Response: ${response.status()} ${response.url()}`);
-    });
 
     const [createResponse] = await Promise.all([
       page.waitForResponse(
-        (response: APIResponse) => {
-          console.log(`Checking response: ${response.url()}`);
-          return response.url().includes(`${apiUrl}${API_ENDPOINTS.CREATE_ROLE}`);
-        }
+        (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.CREATE_ROLE}`)
       ),
       saveButton.click()
     ]);
-    console.log(`Create role response received with status ${createResponse.status()}`);
-
-    // Log response details
-    const responseBody = await createResponse.json().catch(() => 'Could not parse response');
-    console.log('Response body:', responseBody);
 
     // Either 201 (created) or 409 (conflict) is fine - both mean the role exists
     expect(
@@ -123,21 +98,13 @@ test.describe('Roles List Page', () => {
 
     // Only wait for dashboard refresh on successful creation
     if (createResponse.status() === 201) {
-      console.log('Waiting for dashboard refresh after successful creation');
-      const dashboardResponse = await page.waitForResponse(
-        (response: APIResponse) => {
-          console.log(`Checking dashboard response: ${response.url()}`);
-          return response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`) && response.ok();
-        }
+      await page.waitForResponse(
+        (response: APIResponse) => response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`) && response.ok()
       );
-      console.log('Dashboard refresh complete');
-    } else {
-      console.log('Skipping dashboard refresh wait since role already exists');
     }
 
     // Verify API efficiency
     const createCalls = apiTracker.getCallsByMethod('POST');
     expect(createCalls.length, 'Multiple create calls detected').toBe(1);
-    console.log('Test complete');
   });
 }); 
