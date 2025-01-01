@@ -2,7 +2,7 @@ import { test } from '../../fixtures/auth.fixture';
 import { expect } from '@playwright/test';
 import { trackApiCalls } from '../../utils/api-tracker';
 import { ROUTES, API_ENDPOINTS } from '../constants';
-import type { APIResponse } from '@playwright/test';
+import type { APIResponse, Request as PlaywrightRequest, Response as PlaywrightResponse } from '@playwright/test';
 
 test.describe('Roles List Page', () => {
   test('loads and displays roles with optimized API calls', async ({ authenticatedPage: page }) => {
@@ -85,23 +85,49 @@ test.describe('Roles List Page', () => {
       roleNameInput.fill('Test Role')
     ]);
     
-    // Click save and wait for POST response
+    // Click save and wait for create response first
     console.log('Clicking save button');
     const saveButton = page.getByRole('button', { name: /save/i });
-    await Promise.all([
+
+    // Log all requests
+    page.on('request', (request: PlaywrightRequest) => {
+      console.log(`Request: ${request.method()} ${request.url()}`);
+      if (request.url().includes(`${apiUrl}${API_ENDPOINTS.CREATE_ROLE}`)) {
+        console.log('Request body:', request.postData());
+      }
+    });
+    page.on('response', (response: PlaywrightResponse) => {
+      console.log(`Response: ${response.status()} ${response.url()}`);
+    });
+
+    const [createResponse] = await Promise.all([
       page.waitForResponse(
-        (response: APIResponse) => 
-          response.url().includes(`${apiUrl}${API_ENDPOINTS.CREATE_ROLE}`) && 
-          response.ok()
-      ),
-      page.waitForResponse(
-        (response: APIResponse) => 
-          response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`) && 
-          response.ok()
+        (response: APIResponse) => {
+          console.log(`Checking response: ${response.url()}`);
+          return response.url().includes(`${apiUrl}${API_ENDPOINTS.CREATE_ROLE}`);
+        }
       ),
       saveButton.click()
     ]);
-    console.log('Save complete');
+    console.log(`Create role response received with status ${createResponse.status()}`);
+
+    // Log error details if any
+    if (!createResponse.ok()) {
+      const errorBody = await createResponse.json().catch(() => 'Could not parse error response');
+      console.error('Role creation failed:', errorBody);
+    }
+
+    // Verify the response was successful
+    expect(createResponse.ok(), 'Role creation failed').toBeTruthy();
+
+    // Then wait for dashboard refresh
+    const dashboardResponse = await page.waitForResponse(
+      (response: APIResponse) => {
+        console.log(`Checking dashboard response: ${response.url()}`);
+        return response.url().includes(`${apiUrl}${API_ENDPOINTS.ROLES}`) && response.ok();
+      }
+    );
+    console.log('Dashboard refresh complete');
 
     // Verify API efficiency
     const createCalls = apiTracker.getCallsByMethod('POST');

@@ -20,9 +20,6 @@ export const test = base.extend({
       await page.waitForLoadState('domcontentloaded', { timeout: 30000 });
       await page.waitForLoadState('networkidle', { timeout: 30000 });
 
-      // Wait for form to be ready
-      const form = await page.waitForSelector('form', { state: 'visible', timeout: 30000 });
-
       // Wait for form elements with more reliable selectors
       const emailInput = await page.waitForSelector('input[name="email"]', { timeout: 30000, state: 'visible' });
       const passwordInput = await page.waitForSelector('input[name="password"]', { timeout: 30000, state: 'visible' });

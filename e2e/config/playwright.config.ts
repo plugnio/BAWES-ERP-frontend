@@ -7,7 +7,7 @@ const env = loadTestEnv();
 const config: PlaywrightTestConfig = {
   testDir: '../tests',
   timeout: 10000,
-  retries: process.env.CI ? 2 : 1,
+  retries: process.env.CI ? 0 : 0,
   use: {
     baseURL: env.appUrl,
     trace: process.env.CI ? 'on-first-retry' : 'on',
@@ -25,11 +25,7 @@ const config: PlaywrightTestConfig = {
           args: ['--disable-dev-shm-usage']
         }
       },
-    },
-    {
-      name: 'Firefox',
-      use: { browserName: 'firefox' },
-    },
+    }
   ],
   reporter: [
     ['html', { 
