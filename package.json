@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "playwright test --config=e2e/config/playwright.config.ts",
-    "test:e2e:cli": "npm run build > /dev/null && cross-env CI=true NEXT_PUBLIC_APP_URL=http://localhost:3456 PORT=3456 start-server-and-test 'next start -p 3456 > test-server.log 2>&1' http://localhost:3456 'playwright test --config=e2e/config/playwright.config.ts'",
+    "test:e2e:cli": "cross-env NODE_ENV=test NEXT_PUBLIC_APP_URL=http://localhost:3456 PORT=3456 CI=true npm run build && cross-env NODE_ENV=test NEXT_PUBLIC_APP_URL=http://localhost:3456 PORT=3456 CI=true start-server-and-test 'next start -p 3456 > test-server.log 2>&1' http://localhost:3456 'playwright test --config=e2e/config/playwright.config.ts'",
     "test:e2e:ui": "playwright test --ui --config=e2e/config/playwright.config.ts",
     "test:e2e:debug": "playwright test --debug --config=e2e/config/playwright.config.ts"
   },
