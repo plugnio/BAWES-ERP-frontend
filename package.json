@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "playwright test --config=e2e/config/playwright.config.ts",
+    "test:e2e:cli": "cross-env PW_TEST_HTML_REPORT_OPEN=never playwright test --config=e2e/config/playwright.config.ts",
     "test:e2e:ui": "playwright test --ui --config=e2e/config/playwright.config.ts",
     "test:e2e:debug": "playwright test --debug --config=e2e/config/playwright.config.ts"
   },
@@ -55,6 +56,7 @@
     "@types/node": "^20",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.4.7",
     "eslint": "^9",
     "eslint-config-next": "15.1.0",
