@@ -1,4 +1,4 @@
-import { VerifyEmailForm } from "@/components/auth/forms/verify-email-form";
+import { VerifyEmailForm } from "@/components/auth/verify-email-form";
 
 interface SearchParams {
   email?: string;
@@ -9,5 +9,5 @@ export default function VerifyEmailPage({
 }: {
   searchParams: SearchParams;
 }) {
-  return <VerifyEmailForm defaultEmail={searchParams.email} />;
+  return <VerifyEmailForm />;
 } 
