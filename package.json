@@ -54,6 +54,7 @@
     "@shadcn/ui": "^0.0.4",
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
+    "@types/node-fetch": "^2.6.12",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "cross-env": "^7.0.3",
