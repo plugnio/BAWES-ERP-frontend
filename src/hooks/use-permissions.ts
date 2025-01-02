@@ -10,11 +10,14 @@ import type {
 
 interface UsePermissionsReturn {
   dashboard: PermissionDashboard | null;
+  currentRole: Role | null;
   isLoading: boolean;
   error: string | null;
   loadDashboard: () => Promise<void>;
+  loadRole: (roleId: string) => Promise<void>;
   createRole: (data: CreateRoleDto) => Promise<Role>;
   updateRoleOrder: (updates: RoleOrderUpdate[]) => Promise<void>;
+  updateRolePermissions: (roleId: string, permissions: string[]) => Promise<void>;
   invalidateCache: () => void;
 }
 
@@ -89,6 +92,7 @@ export function usePermissions(): UsePermissionsReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<PermissionDashboard | null>(null);
+  const [currentRole, setCurrentRole] = useState<Role | null>(null);
 
   const loadDashboard = useCallback(async () => {
     const now = Date.now();
@@ -133,6 +137,38 @@ export function usePermissions(): UsePermissionsReturn {
     }
   }, [permissionsService]);
 
+  const loadRole = useCallback(async (roleId: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const role = await permissionsService.getRole(roleId);
+      setCurrentRole(role);
+    } catch (err) {
+      console.error('Error loading role:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load role');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [permissionsService]);
+
+  const updateRolePermissions = useCallback(async (roleId: string, permissions: string[]) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await permissionsService.updateRolePermissions(roleId, permissions);
+      await loadRole(roleId); // Reload role to get updated permissions
+      invalidateCache();
+      await loadDashboard(); // Reload dashboard to update all data
+    } catch (err) {
+      console.error('Error updating role permissions:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update role permissions');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [permissionsService, loadRole, loadDashboard]);
+
   const invalidateCache = useCallback(() => {
     dashboardCache = null;
     lastLoadTime = 0; // Reset last load time when cache is invalidated
@@ -169,11 +205,14 @@ export function usePermissions(): UsePermissionsReturn {
 
   return {
     dashboard,
+    currentRole,
     isLoading,
     error,
     loadDashboard,
+    loadRole,
     createRole,
     updateRoleOrder,
+    updateRolePermissions,
     invalidateCache
   };
 } 
