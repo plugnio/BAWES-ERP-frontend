@@ -1,6 +1,6 @@
 import { Decimal } from 'decimal.js';
 import { BaseService } from './base.service';
-import type { AxiosResponse } from 'axios';
+import type { AxiosResponse, AxiosPromise } from 'axios';
 import type { Role } from './role.service';
 import type { CreateRoleDto } from './role.service';
 import type { UpdateRoleDto } from './role.service';
@@ -119,10 +119,23 @@ export class PermissionsService extends BaseService {
    * Updates role permissions
    */
   async updateRolePermissions(roleId: string, permissions: string[]): Promise<void> {
-    await this.client.roles.roleManagementControllerTogglePermissions(roleId, {
-      data: { permissions },
-    });
-    this.clearDashboardCache();
+    try {
+      const role = await this.getRole(roleId);
+      if (role.isSystem) {
+        throw new Error('Cannot modify system role permissions');
+      }
+
+      await this.handleRequest(
+        this.client.roles.roleManagementControllerTogglePermissions(roleId, {
+          data: { permissions }
+        }) as unknown as AxiosPromise<void>
+      );
+      
+      this.clearDashboardCache();
+    } catch (error) {
+      this.handleError(error);
+      throw error;
+    }
   }
 
   /**
