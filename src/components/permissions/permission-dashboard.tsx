@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/shared';
 import { PermissionList } from './permission-list';
 import type { Role } from '@/services/role.service';
+import type { Permission, PermissionCategory } from '@/services/permissions.service';
 
 interface PermissionDashboardProps {
   roleId: string;
@@ -41,6 +42,37 @@ export function PermissionDashboard({ roleId, onPermissionsChange }: PermissionD
     }
   }, [roleId, loadRole]);
 
+  const handlePermissionToggle = React.useCallback((permissionId: string) => {
+    if (!role || !onPermissionsChange) return;
+    
+    const newPermissions = new Set(role.permissions);
+    if (newPermissions.has(permissionId)) {
+      newPermissions.delete(permissionId);
+    } else {
+      newPermissions.add(permissionId);
+    }
+    onPermissionsChange(Array.from(newPermissions));
+  }, [role, onPermissionsChange]);
+
+  const handleBulkSelect = React.useCallback((categoryName: string, selected: boolean) => {
+    if (!role || !onPermissionsChange || !dashboard) return;
+    
+    const category = dashboard.categories.find((c: PermissionCategory) => c.name === categoryName);
+    if (!category) return;
+
+    const newPermissions = new Set(role.permissions);
+    category.permissions
+      .filter((p: Permission) => !p.isDeprecated)
+      .forEach((permission: Permission) => {
+        if (selected) {
+          newPermissions.add(permission.id);
+        } else {
+          newPermissions.delete(permission.id);
+        }
+      });
+    onPermissionsChange(Array.from(newPermissions));
+  }, [role, onPermissionsChange, dashboard]);
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -57,6 +89,9 @@ export function PermissionDashboard({ roleId, onPermissionsChange }: PermissionD
     return null;
   }
 
+  // Convert role permissions array to Set
+  const selectedPermissions = new Set(role.permissions);
+
   return (
     <Card data-testid="permission-dashboard">
       <CardHeader>
@@ -68,8 +103,10 @@ export function PermissionDashboard({ roleId, onPermissionsChange }: PermissionD
       <CardContent>
         <PermissionList
           categories={dashboard.categories}
-          selectedPermissions={role.permissions}
-          onPermissionsChange={role.isSystem ? undefined : onPermissionsChange}
+          selectedPermissions={selectedPermissions}
+          onPermissionToggle={role.isSystem ? undefined : handlePermissionToggle}
+          onBulkSelect={role.isSystem ? undefined : handleBulkSelect}
+          disabled={role.isSystem}
           className="mt-4"
         />
       </CardContent>
