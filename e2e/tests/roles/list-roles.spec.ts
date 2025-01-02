@@ -1,48 +1,66 @@
 import { test } from '../../fixtures/auth.fixture';
 import { expect } from '@playwright/test';
-import { trackApiCalls } from '../../utils/api-tracker';
-import { ROUTES, API_ENDPOINTS } from '../constants';
-import type { APIResponse } from '@playwright/test';
+import { ROUTES } from '../constants';
 
 test.describe('Roles List Page', () => {
   test('loads and displays roles', async ({ authenticatedPage: page }) => {
     // Navigate to roles page
     await page.goto(ROUTES.ROLES);
     
-    // Wait for critical UI elements
-    await expect(page.getByTestId('loading-spinner')).toBeHidden();
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    // Wait for heading to be visible
+    await expect(page.getByRole('heading', { name: 'Role Management', level: 1 })).toBeVisible();
     
-    // Verify roles are loaded
-    const roleButtons = await page.getByRole('button').filter({ hasText: /^(?!New Role|Save).*/ }).count();
-    expect(roleButtons).toBeGreaterThan(0);
+    // Wait for loading spinner to disappear
+    await expect(page.getByRole('progressbar')).toBeHidden();
+    
+    // Wait for roles to be loaded
+    const roleButtons = page.locator('button.w-full.justify-start.group');
+    await expect(roleButtons.first()).toBeVisible();
+    
+    // Verify multiple roles exist
+    const count = await roleButtons.count();
+    expect(count).toBeGreaterThan(1);
   });
 
-  test('efficiently handles role creation', async ({ authenticatedPage: page }) => {
+  test('can create a new role', async ({ authenticatedPage: page }) => {
+    // Generate unique role name using timestamp
+    const timestamp = Date.now();
+    const roleName = `Test Role ${timestamp}`;
+    const roleDescription = `Test role description ${timestamp}`;
+    
     // Navigate to roles page
     await page.goto(ROUTES.ROLES);
     
-    // Wait for UI to be ready
-    await expect(page.getByTestId('loading-spinner')).toBeHidden();
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    // Wait for heading to be visible
+    await expect(page.getByRole('heading', { name: 'Role Management', level: 1 })).toBeVisible();
     
-    // Wait for and click the New Role button
-    const newRoleButton = page.getByRole('button', { name: /new role/i });
-    await expect(newRoleButton).toBeVisible();
-    await newRoleButton.click();
+    // Wait for loading spinner to disappear
+    await expect(page.getByRole('progressbar')).toBeHidden();
     
-    // Fill role name
-    const roleNameInput = page.getByLabel(/role name/i);
-    await expect(roleNameInput).toBeVisible();
-    await roleNameInput.fill('Test Role');
+    // Click create role button
+    await page.getByRole('button', { name: 'New Role' }).click();
     
-    // Save and wait for response
-    const saveButton = page.getByRole('button', { name: /save/i });
-    await expect(saveButton).toBeVisible();
-    await saveButton.click();
+    // Wait for dialog to appear
+    await expect(page.getByRole('dialog')).toBeVisible();
     
-    // Wait for UI to update
-    await expect(page.getByTestId('loading-spinner')).toBeHidden();
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    // Fill in role details
+    await page.getByLabel('Role Name').fill(roleName);
+    await page.getByLabel('Description').fill(roleDescription);
+    
+    // Submit form
+    await page.getByRole('button', { name: 'Save' }).click();
+    
+    // Wait for dialog to close
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    
+    // Wait for loading spinner to disappear again
+    await expect(page.getByRole('progressbar')).toBeHidden();
+    
+    // Verify new role appears in list
+    const newRole = page.getByText(roleName);
+    await expect(newRole).toBeVisible();
+    
+    // Verify description is visible
+    await expect(page.getByText(roleDescription)).toBeVisible();
   });
 }); 
