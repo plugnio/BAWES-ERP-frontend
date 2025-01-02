@@ -2,8 +2,8 @@ import {
   Configuration,
   AuthenticationApi,
   PeopleApi,
-  PermissionManagementApi,
-  RoleManagementApi,
+  PermissionsApi,
+  RolesApi,
 } from '@bawes/erp-api-sdk';
 import { SDK_CONFIG, createConfiguration, setTokenAccessor } from './config';
 import { debugLog } from '@/lib/debug';
@@ -46,15 +46,15 @@ class ApiClient {
   private readonly services = {
     auth: {} as AuthenticationApi,
     people: {} as PeopleApi,
-    permissions: {} as PermissionManagementApi,
-    roles: {} as RoleManagementApi,
+    permissions: {} as PermissionsApi,
+    roles: {} as RolesApi,
   };
 
   // Public getters for API instances
   get auth(): AuthenticationApi { return this.services.auth; }
   get people(): PeopleApi { return this.services.people; }
-  get permissions(): PermissionManagementApi { return this.services.permissions; }
-  get roles(): RoleManagementApi { return this.services.roles; }
+  get permissions(): PermissionsApi { return this.services.permissions; }
+  get roles(): RolesApi { return this.services.roles; }
 
   private constructor() {
     debugLog('ApiClient: Initializing', {
@@ -77,8 +77,8 @@ class ApiClient {
     Object.assign(this.services, {
       auth: new AuthenticationApi(this.configuration),
       people: new PeopleApi(this.configuration),
-      permissions: new PermissionManagementApi(this.configuration),
-      roles: new RoleManagementApi(this.configuration),
+      permissions: new PermissionsApi(this.configuration),
+      roles: new RolesApi(this.configuration),
     });
   }
 
@@ -254,67 +254,42 @@ class ApiClient {
   }
 
   /**
-   * Refreshes the access token
-   * Uses a lock to prevent concurrent refresh attempts
+   * Refreshes the access token using the refresh token cookie
+   * @private
    */
-  async refreshToken() {
-    // If there's already a refresh in progress, wait for it
+  private async refreshToken(): Promise<void> {
     if (this.refreshPromise) {
-      debugLog('ApiClient: Token refresh in progress, waiting...', {
-        action: 'refresh_wait',
-        hasExistingPromise: true
-      });
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = (async () => {
       try {
-        await this.refreshPromise;
-        return;
-      } catch (error) {
-        debugLog('ApiClient: Waiting for refresh failed', {
-          error,
-          action: 'refresh_wait_error'
+        debugLog('ApiClient: Refreshing token', {
+          action: 'refresh_start',
+          timestamp: new Date().toISOString()
         });
-        throw error;
-      }
-    }
 
-    try {
-      // Create new refresh promise and store reference before awaiting
-      const promise = (async () => {
-        debugLog('ApiClient: Starting token refresh', {
-          action: 'refresh_start'
-        });
-        
-        const response = await this.auth.authControllerRefresh({
-          refresh_token: 'dummy', // The actual token is sent via cookie
-        });
-        
-        // Cast response data to TokenResponse
+        const response = await this.services.auth.authControllerRefresh();
         const tokenResponse = response.data as unknown as TokenResponse;
-        
-        // Handle the token response
         this.handleTokenResponse(tokenResponse);
-        
-        debugLog('ApiClient: Token refresh completed', {
+
+        debugLog('ApiClient: Token refreshed', {
           action: 'refresh_success',
-          expiresIn: tokenResponse.expiresIn
+          timestamp: new Date().toISOString()
         });
-      })();
+      } catch (error) {
+        debugLog('ApiClient: Token refresh failed', {
+          error,
+          action: 'refresh_error'
+        });
+        this.handleRefreshFailure();
+        throw error;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
 
-      // Store the promise before awaiting it
-      this.refreshPromise = promise;
-
-      // Wait for refresh to complete
-      await promise;
-    } catch (error) {
-      debugLog('ApiClient: Token refresh failed', {
-        error,
-        action: 'refresh_error'
-      });
-      this.handleRefreshFailure();
-      throw error;
-    } finally {
-      // Clear the refresh promise
-      this.refreshPromise = null;
-    }
+    return this.refreshPromise;
   }
 
   /**

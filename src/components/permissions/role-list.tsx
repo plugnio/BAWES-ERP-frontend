@@ -14,9 +14,11 @@ import {
 } from '@/components/ui/card';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Trash2 } from 'lucide-react';
 import type { Role } from '@/services/role.service';
 import { RoleDialog } from './role-dialog';
+import { useServices } from '@/hooks/use-services';
+import { toast } from '@/components/ui/use-toast';
 
 interface RoleListProps {
   roles: Role[];
@@ -24,12 +26,14 @@ interface RoleListProps {
   selectedRoleId?: string;
   className?: string;
   onCreateRole?: (name: string, description?: string) => Promise<void>;
+  onRefresh?: () => Promise<void>;
 }
 
-function SortableRole({ role, isSelected, onSelect }: {
+function SortableRole({ role, isSelected, onSelect, onDelete }: {
   role: Role;
   isSelected: boolean;
   onSelect: () => void;
+  onDelete: () => Promise<void>;
 }) {
   const {
     attributes,
@@ -43,6 +47,20 @@ function SortableRole({ role, isSelected, onSelect }: {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await onDelete();
+    } catch (error) {
+      console.error('Failed to delete role:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete role'
+      });
+    }
   };
 
   return (
@@ -63,7 +81,7 @@ function SortableRole({ role, isSelected, onSelect }: {
         >
           <GripVertical className="h-4 w-4" />
         </div>
-        <div className="text-left pl-8">
+        <div className="text-left pl-8 flex-1">
           <div className="font-medium">{role.name}</div>
           {role.description && (
             <div className="text-sm text-muted-foreground">
@@ -71,6 +89,16 @@ function SortableRole({ role, isSelected, onSelect }: {
             </div>
           )}
         </div>
+        {!role.isSystem && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="opacity-0 group-hover:opacity-100"
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        )}
       </Button>
     </div>
   );
@@ -82,12 +110,36 @@ export function RoleList({
   selectedRoleId,
   className,
   onCreateRole,
+  onRefresh,
 }: RoleListProps) {
+  const { roles: roleService } = useServices();
+  const [isLoading, setIsLoading] = React.useState(false);
+
   const handleCreateRole = async ({ name, description }: { name: string; description?: string }) => {
     if (onCreateRole) {
       await onCreateRole(name, description);
     }
   };
+
+  const handleDeleteRole = async (roleId: string) => {
+    try {
+      setIsLoading(true);
+      await roleService.deleteRole(roleId);
+      toast({
+        title: "Success",
+        description: "Role deleted successfully"
+      });
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <Card className={className}>
@@ -107,6 +159,7 @@ export function RoleList({
             role={role}
             isSelected={selectedRoleId === role.id}
             onSelect={() => onRoleSelect?.(role.id)}
+            onDelete={() => handleDeleteRole(role.id)}
           />
         ))}
       </CardContent>
