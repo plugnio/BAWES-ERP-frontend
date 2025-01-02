@@ -19,6 +19,8 @@ import type { Role } from '@/services/role.service';
 import { RoleDialog } from './role-dialog';
 import { useServices } from '@/hooks/use-services';
 import { toast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface RoleListProps {
   roles: Role[];
@@ -29,12 +31,14 @@ interface RoleListProps {
   onRefresh?: () => Promise<void>;
 }
 
-function SortableRole({ role, isSelected, onSelect, onDelete }: {
+interface SortableRoleProps {
   role: Role;
   isSelected: boolean;
   onSelect: () => void;
-  onDelete: () => Promise<void>;
-}) {
+  onDelete?: () => void;
+}
+
+function SortableRole({ role, isSelected, onSelect, onDelete }: SortableRoleProps) {
   const {
     attributes,
     listeners,
@@ -44,62 +48,46 @@ function SortableRole({ role, isSelected, onSelect, onDelete }: {
     isDragging,
   } = useSortable({ id: role.id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await onDelete();
-    } catch (error) {
-      console.error('Failed to delete role:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Failed to delete role'
-      });
-    }
-  };
-
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`relative ${isDragging ? 'z-50' : ''}`}
+      data-testid="role-item"
+      className={cn(
+        "p-4 border rounded-lg cursor-pointer",
+        "hover:border-primary/50 transition-colors",
+        isSelected && "border-primary",
+        isDragging && "opacity-50",
+        role.isSystem && "border-secondary/50"
+      )}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      onClick={onSelect}
     >
-      <Button
-        variant={isSelected ? 'default' : 'outline'}
-        className="w-full justify-start group"
-        onClick={onSelect}
-      >
-        <div
-          {...attributes}
-          {...listeners}
-          className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing"
-        >
-          <GripVertical className="h-4 w-4" />
+      <div className="flex items-center gap-3">
+        <div {...attributes} {...listeners} className="cursor-grab">
+          <GripVertical className="h-5 w-5 text-muted-foreground" />
         </div>
-        <div className="text-left pl-8 flex-1">
-          <div className="font-medium">{role.name}</div>
-          {role.description && (
-            <div className="text-sm text-muted-foreground">
-              {role.description}
-            </div>
-          )}
+        <div className="flex-1">
+          <h3 className="font-medium">{role.name}</h3>
+          <p className="text-sm text-muted-foreground">{role.description}</p>
         </div>
-        {!role.isSystem && (
+        {role.isSystem ? (
+          <Badge variant="secondary">System</Badge>
+        ) : onDelete && (
           <Button
             variant="ghost"
-            size="sm"
-            className="opacity-0 group-hover:opacity-100"
-            onClick={handleDelete}
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
           >
-            <Trash2 className="h-4 w-4 text-destructive" />
+            <Trash2 className="h-4 w-4" />
           </Button>
         )}
-      </Button>
+      </div>
     </div>
   );
 }

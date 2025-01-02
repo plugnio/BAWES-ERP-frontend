@@ -1,52 +1,39 @@
 'use client';
 
 import React from 'react';
-import { usePermissions } from '@/hooks';
-import { LoadingSpinner } from '@/components/shared';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useServices } from '@/hooks/use-services';
+import { usePermissions } from '@/hooks/use-permissions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card';
+import { LoadingSpinner } from '@/components/shared';
 import { PermissionList } from './permission-list';
-import type { Permission, PermissionCategory } from '@/services/permissions.service';
+import type { Role } from '@/services/role.service';
 
 interface PermissionDashboardProps {
-  roleId?: string;
-  className?: string;
-  onPermissionsChange?: (permissions: string[]) => void;
+  roleId: string;
+  onPermissionsChange?: (permissions: string[]) => Promise<void>;
 }
 
-export function PermissionDashboard({
-  roleId,
-  className,
-  onPermissionsChange,
-}: PermissionDashboardProps) {
-  const {
-    dashboard,
-    currentRole,
-    isLoading,
-    error,
-    loadDashboard,
-    loadRole,
-    updateRolePermissions,
-  } = usePermissions();
+export function PermissionDashboard({ roleId, onPermissionsChange }: PermissionDashboardProps) {
+  const { roles: roleService } = useServices();
+  const { dashboard } = usePermissions();
+  const [role, setRole] = React.useState<Role | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const [selectedPermissions, setSelectedPermissions] = React.useState<Set<string>>(new Set());
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [saveError, setSaveError] = React.useState<string | null>(null);
-
-  // Only load dashboard if we don't have it yet
-  React.useEffect(() => {
-    if (!dashboard) {
-      loadDashboard();
+  const loadRole = React.useCallback(async (id: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const roleData = await roleService.getRole(id);
+      setRole(roleData);
+    } catch (err) {
+      console.error('Failed to load role:', err);
+      setError('Failed to load role details');
+    } finally {
+      setIsLoading(false);
     }
-  }, [dashboard, loadDashboard]);
+  }, [roleService]);
 
   React.useEffect(() => {
     if (roleId) {
@@ -54,68 +41,38 @@ export function PermissionDashboard({
     }
   }, [roleId, loadRole]);
 
-  // Show loading state
   if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
     return (
-      <Card className={className}>
-        <CardContent className="flex items-center justify-center min-h-[400px]">
-          <LoadingSpinner />
-        </CardContent>
-      </Card>
+      <Alert variant="destructive">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
     );
   }
 
-  // Show error state
-  if (error || !dashboard) {
-    return (
-      <Card className={className}>
-        <CardContent className="p-6">
-          <Alert variant="destructive">
-            <AlertDescription>
-              {error || 'Failed to load permissions dashboard'}
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
+  if (!role || !dashboard) {
+    return null;
   }
-
-  const handlePermissionToggle = (permissionId: string) => {
-    const newSelected = new Set(selectedPermissions);
-    if (newSelected.has(permissionId)) {
-      newSelected.delete(permissionId);
-    } else {
-      newSelected.add(permissionId);
-    }
-    setSelectedPermissions(newSelected);
-    onPermissionsChange?.(Array.from(newSelected));
-  };
-
-  const handleBulkSelect = (categoryName: string, selected: boolean) => {
-    const category = dashboard.categories.find((c) => c.name === categoryName);
-    if (!category) return;
-
-    const newSelected = new Set(selectedPermissions);
-    category.permissions
-      .filter((p: Permission) => !p.isDeprecated)
-      .forEach((permission: Permission) => {
-        if (selected) {
-          newSelected.add(permission.id);
-        } else {
-          newSelected.delete(permission.id);
-        }
-      });
-    setSelectedPermissions(newSelected);
-    onPermissionsChange?.(Array.from(newSelected));
-  };
 
   return (
-    <PermissionList
-      categories={dashboard.categories}
-      selectedPermissions={selectedPermissions}
-      onPermissionToggle={handlePermissionToggle}
-      onBulkSelect={handleBulkSelect}
-      className={className}
-    />
+    <Card data-testid="permission-dashboard">
+      <CardHeader>
+        <CardTitle>Permissions for {role.name}</CardTitle>
+        <CardDescription>
+          {role.isSystem ? 'System role permissions cannot be modified' : 'Select permissions for this role'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <PermissionList
+          categories={dashboard.categories}
+          selectedPermissions={role.permissions}
+          onPermissionsChange={role.isSystem ? undefined : onPermissionsChange}
+          className="mt-4"
+        />
+      </CardContent>
+    </Card>
   );
 } 
