@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { usePermissions } from '@/hooks';
+import { useServices } from '@/hooks/use-services';
 import { LoadingSpinner } from '@/components/shared';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -34,9 +35,9 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
     error,
     loadDashboard,
     updateRoleOrder,
-    updateRolePermissions,
     createRole,
   } = usePermissions();
+  const { roles: roleService } = useServices();
 
   const [selectedRoleId, setSelectedRoleId] = React.useState<string | undefined>();
   const [roles, setRoles] = React.useState<Role[]>([]);
@@ -88,7 +89,9 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
 
     try {
       setUpdateError(null);
-      await updateRolePermissions(selectedRoleId, permissions);
+      await roleService.updateRolePermissions(selectedRoleId, permissions);
+      // Refresh dashboard after updating permissions
+      await loadDashboard();
     } catch (error) {
       console.error('Failed to update permissions:', error);
       setUpdateError('Failed to update permissions. Please try again.');
@@ -99,11 +102,23 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
     try {
       setUpdateError(null);
       await createRole({ name, description });
+      // Refresh dashboard after creating role
+      await loadDashboard();
     } catch (error) {
       console.error('Failed to create role:', error);
       setUpdateError('Failed to create role. Please try again.');
     }
   };
+
+  const handleRefresh = React.useCallback(async () => {
+    try {
+      setUpdateError(null);
+      await loadDashboard();
+    } catch (error) {
+      console.error('Failed to refresh roles:', error);
+      setUpdateError('Failed to refresh roles. Please try again.');
+    }
+  }, [loadDashboard]);
 
   return (
     <div className={className}>
@@ -134,12 +149,13 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
                 selectedRoleId={selectedRoleId}
                 onRoleSelect={setSelectedRoleId}
                 onCreateRole={handleCreateRole}
+                onRefresh={handleRefresh}
               />
             </SortableContext>
           </DndContext>
           {selectedRoleId && (
             <PermissionDashboard
-              roleId={selectedRoleId}
+              role={roles.find(r => r.id === selectedRoleId)!}
               onPermissionsChange={handlePermissionsChange}
             />
           )}

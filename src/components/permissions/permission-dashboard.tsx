@@ -1,115 +1,120 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useServices } from '@/hooks/use-services';
-import { usePermissions } from '@/hooks/use-permissions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { LoadingSpinner } from '@/components/shared';
+import { useServices } from '@/hooks/use-services';
 import { PermissionList } from './permission-list';
 import type { Role } from '@/services/role.service';
-import type { Permission, PermissionCategory } from '@/services/permissions.service';
+import type { Permission, PermissionCategory, PermissionDashboard } from '@/services/permissions.service';
+import { cn } from '@/lib/utils';
 
 interface PermissionDashboardProps {
-  roleId: string;
+  role: Role;
   onPermissionsChange?: (permissions: string[]) => Promise<void>;
+  className?: string;
 }
 
-export function PermissionDashboard({ roleId, onPermissionsChange }: PermissionDashboardProps) {
-  const { roles: roleService } = useServices();
-  const { dashboard } = usePermissions();
-  const [role, setRole] = React.useState<Role | null>(null);
+export function PermissionDashboard({ role, onPermissionsChange, className }: PermissionDashboardProps) {
+  const { permissions: permissionsService, roles: rolesService } = useServices();
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [updateError, setUpdateError] = React.useState<string | null>(null);
+  const [dashboard, setDashboard] = React.useState<PermissionDashboard | null>(null);
 
   const loadRole = React.useCallback(async (id: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      const roleData = await roleService.getRole(id);
-      setRole(roleData);
-    } catch (err) {
-      console.error('Failed to load role:', err);
-      setError('Failed to load role details');
+      const dashboardData = await permissionsService.getDashboard();
+      setDashboard(dashboardData);
+    } catch (error) {
+      console.error('Failed to load role:', error);
+      setError('Failed to load role. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [roleService]);
+  }, [permissionsService]);
 
   React.useEffect(() => {
-    if (roleId) {
-      loadRole(roleId);
+    if (role) {
+      loadRole(role.id);
     }
-  }, [roleId, loadRole]);
+  }, [role, loadRole]);
 
-  const handlePermissionToggle = React.useCallback((permissionId: string) => {
-    if (!role || !onPermissionsChange) return;
-    
+  const handlePermissionToggle = React.useCallback(async (permissionId: string) => {
+    if (!role) return;
+
     const newPermissions = new Set(role.permissions);
     if (newPermissions.has(permissionId)) {
       newPermissions.delete(permissionId);
     } else {
       newPermissions.add(permissionId);
     }
-    onPermissionsChange(Array.from(newPermissions));
-  }, [role, onPermissionsChange]);
+
+    try {
+      setUpdateError(null);
+      await rolesService.updateRolePermissions(role.id, Array.from(newPermissions));
+      await loadRole(role.id);
+      onPermissionsChange?.(Array.from(newPermissions));
+    } catch (error) {
+      console.error('Failed to update permissions:', error);
+      setUpdateError('Failed to update permissions. Please try again.');
+    }
+  }, [role, rolesService, loadRole, onPermissionsChange]);
 
   const handleBulkSelect = React.useCallback((categoryName: string, selected: boolean) => {
-    if (!role || !onPermissionsChange || !dashboard) return;
-    
+    if (!role || !dashboard) return;
+
     const category = dashboard.categories.find((c: PermissionCategory) => c.name === categoryName);
     if (!category) return;
 
+    const categoryPermissions = category.permissions.map((p: Permission) => p.id);
     const newPermissions = new Set(role.permissions);
-    category.permissions
-      .filter((p: Permission) => !p.isDeprecated)
-      .forEach((permission: Permission) => {
-        if (selected) {
-          newPermissions.add(permission.id);
-        } else {
-          newPermissions.delete(permission.id);
-        }
-      });
-    onPermissionsChange(Array.from(newPermissions));
-  }, [role, onPermissionsChange, dashboard]);
+    
+    categoryPermissions.forEach((permissionId: string) => {
+      if (selected) {
+        newPermissions.add(permissionId);
+      } else {
+        newPermissions.delete(permissionId);
+      }
+    });
+
+    try {
+      setUpdateError(null);
+      rolesService.updateRolePermissions(role.id, Array.from(newPermissions));
+      loadRole(role.id);
+      onPermissionsChange?.(Array.from(newPermissions));
+    } catch (error) {
+      console.error('Failed to update permissions:', error);
+      setUpdateError('Failed to update permissions. Please try again.');
+    }
+  }, [role, dashboard, rolesService, loadRole, onPermissionsChange]);
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return <div>Loading...</div>;
   }
 
   if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
+    return <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>;
   }
 
-  if (!role || !dashboard) {
+  if (!dashboard) {
     return null;
   }
 
-  // Convert role permissions array to Set
-  const selectedPermissions = new Set(role.permissions);
-
   return (
-    <Card data-testid="permission-dashboard">
-      <CardHeader>
-        <CardTitle>Permissions for {role.name}</CardTitle>
-        <CardDescription>
-          {role.isSystem ? 'System role permissions cannot be modified' : 'Select permissions for this role'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <PermissionList
-          categories={dashboard.categories}
-          selectedPermissions={selectedPermissions}
-          onPermissionToggle={role.isSystem ? undefined : handlePermissionToggle}
-          onBulkSelect={role.isSystem ? undefined : handleBulkSelect}
-          disabled={role.isSystem}
-          className="mt-4"
-        />
-      </CardContent>
-    </Card>
+    <div className={cn("space-y-6", className)} data-testid="permission-dashboard">
+      {updateError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{updateError}</AlertDescription>
+        </Alert>
+      )}
+      <PermissionList
+        categories={dashboard.categories}
+        selectedPermissions={new Set(role?.permissions || [])}
+        onPermissionToggle={handlePermissionToggle}
+        onBulkSelect={handleBulkSelect}
+      />
+    </div>
   );
 } 

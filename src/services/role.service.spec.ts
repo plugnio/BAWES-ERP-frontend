@@ -160,13 +160,31 @@ describe('RoleService', () => {
     const newPermissions = ['1', '2', '3'];
 
     it('should update permissions for non-system role', async () => {
-      mockHandleRequest
-        .mockResolvedValueOnce(mockRole) // getRole
-        .mockResolvedValueOnce(undefined); // updatePermissions
+      const mockTogglePermissions = jest.fn().mockResolvedValue(undefined);
+      (BaseService as jest.Mock).mockImplementation(() => ({
+        handleRequest: mockHandleRequest,
+        client: {
+          roles: {
+            roleControllerGetRole: jest.fn(() => Promise.resolve(mockRole)),
+            roleControllerTogglePermissions: mockTogglePermissions,
+          },
+        },
+      }));
+
+      service = new RoleService();
+      Object.setPrototypeOf(service, {
+        ...Object.getPrototypeOf(service),
+        getRole: RoleService.prototype.getRole,
+        updateRolePermissions: RoleService.prototype.updateRolePermissions,
+      });
 
       await service.updateRolePermissions('1', newPermissions);
 
-      expect(mockHandleRequest).toHaveBeenCalledTimes(2);
+      expect(mockTogglePermissions).toHaveBeenCalledWith('1', {
+        data: {
+          permissionIds: newPermissions
+        }
+      });
     });
 
     it('should not update system role permissions', async () => {

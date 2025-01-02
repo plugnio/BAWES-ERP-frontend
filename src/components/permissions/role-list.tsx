@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge';
 
 interface RoleListProps {
   roles: Role[];
-  onRoleSelect?: (roleId: string) => void;
+  onRoleSelect?: (roleId: string | undefined) => void;
   selectedRoleId?: string;
   className?: string;
   onCreateRole?: (name: string, description?: string) => Promise<void>;
@@ -79,6 +79,7 @@ function SortableRole({ role, isSelected, onSelect, onDelete }: SortableRoleProp
           <Button
             variant="ghost"
             size="icon"
+            data-testid="delete-role-button"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
@@ -113,13 +114,21 @@ export function RoleList({
     try {
       setIsLoading(true);
       await roleService.deleteRole(roleId);
+      if (selectedRoleId === roleId) {
+        onRoleSelect?.(undefined);
+      }
       toast({
         title: "Success",
         description: "Role deleted successfully"
       });
-      if (onRefresh) {
-        await onRefresh();
-      }
+      await onRefresh?.();
+    } catch (error) {
+      console.error('Failed to delete role:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete role. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }

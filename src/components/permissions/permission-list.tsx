@@ -94,6 +94,7 @@ export function PermissionList({
                       >
                         <Checkbox
                           id={`permission-${permission.id}`}
+                          data-testid="permission-toggle"
                           checked={selectedPermissions.has(permission.id)}
                           onCheckedChange={() => onPermissionToggle?.(permission.id)}
                           disabled={disabled}
