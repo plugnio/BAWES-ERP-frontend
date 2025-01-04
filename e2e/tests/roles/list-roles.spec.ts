@@ -48,14 +48,14 @@ test.describe('Roles List Page', () => {
     await page.getByLabel('Role Name').fill(roleName);
     await page.getByLabel('Description').fill(roleDescription);
     
-    // Click save and wait for API response
-    const [createResponse] = await Promise.all([
+    // Click save and wait for API responses
+    const createResponse = await Promise.all([
       page.waitForResponse((response: Response) => 
         response.url().includes(`${env.apiUrl}/roles`) && 
         response.request().method() === 'POST'
       ),
       page.getByRole('button', { name: 'Save' }).click()
-    ]);
+    ]).then(([response]) => response);
     
     // Get response data to verify
     const responseData = await createResponse.json();
@@ -69,6 +69,13 @@ test.describe('Roles List Page', () => {
     
     // Wait for role list to update and verify new role appears
     await expect(async () => {
+      // Wait for dashboard refresh with retry
+      const dashboardResponse = await page.waitForResponse((response: Response) => 
+        response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
+        response.request().method() === 'GET'
+      );
+      expect(dashboardResponse.ok()).toBeTruthy();
+      
       const count = await page.getByTestId('role-item').count();
       expect(count).toBe(initialCount + 1);
       await expect(page.getByText(roleName)).toBeVisible();
@@ -103,19 +110,22 @@ test.describe('Roles List Page', () => {
     const roleId = page.url().split('/').pop();
     
     // Click toggle and wait for API response
-    const [updateResponse] = await Promise.all([
+    const updateResponse = await Promise.all([
       page.waitForResponse((response: Response) => 
         response.url().includes(`${env.apiUrl}/roles/${roleId}/permissions`) && 
         response.request().method() === 'PATCH'
       ),
       toggle.click()
-    ]);
+    ]).then(([response]) => response);
     
-    // Wait for dashboard to refresh
-    await page.waitForResponse((response: Response) => 
-      response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
-      response.request().method() === 'GET'
-    );
+    // Wait for dashboard to refresh with retry
+    await expect(async () => {
+      const dashboardResponse = await page.waitForResponse((response: Response) => 
+        response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
+        response.request().method() === 'GET'
+      );
+      expect(dashboardResponse.ok()).toBeTruthy();
+    }).toPass({ timeout: 30000 });
     
     // Get updated permissions after toggle
     const updatedPermissions = await page.evaluate(() => {

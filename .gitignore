@@ -46,3 +46,4 @@ next-env.d.ts
 e2e/test-output/
 debug.log
 test-server.log
+debug-output/
