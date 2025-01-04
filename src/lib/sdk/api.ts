@@ -257,7 +257,7 @@ class ApiClient {
    * Refreshes the access token using the refresh token cookie
    * @private
    */
-  private async refreshToken(): Promise<void> {
+  public async refreshToken(): Promise<void> {
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
