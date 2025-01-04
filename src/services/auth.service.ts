@@ -159,8 +159,8 @@ export class AuthService extends BaseService {
    */
   async logout() {
     try {
-      // Call logout endpoint with empty refresh token
-      await this.client.auth.authControllerLogout({ refresh_token: '' });
+      // Call logout endpoint
+      await this.client.auth.authControllerLogout();
       
       // Clear client state
       this.client.reset();
