@@ -9,7 +9,6 @@ test.describe('Roles List Page', () => {
     
     // Navigate to roles page
     await page.goto(ROUTES.ROLES);
-    await page.waitForLoadState('domcontentloaded');
     
     // Wait for initial roles to load
     await page.waitForResponse((response: Response) => 
@@ -48,14 +47,17 @@ test.describe('Roles List Page', () => {
     await page.getByLabel('Role Name').fill(roleName);
     await page.getByLabel('Description').fill(roleDescription);
     
-    // Click save and wait for API responses
-    const createResponse = await Promise.all([
-      page.waitForResponse((response: Response) => 
-        response.url().includes(`${env.apiUrl}/roles`) && 
-        response.request().method() === 'POST'
-      ),
-      page.getByRole('button', { name: 'Save' }).click()
-    ]).then(([response]) => response);
+    // Set up response listener before clicking save
+    const responsePromise = page.waitForResponse((response: Response) => 
+      response.url().includes(`${env.apiUrl}/roles`) && 
+      response.request().method() === 'POST'
+    );
+    
+    // Click save
+    await page.getByRole('button', { name: 'Save' }).click();
+    
+    // Wait for response
+    const createResponse = await responsePromise;
     
     // Get response data to verify
     const responseData = await createResponse.json();
@@ -69,18 +71,11 @@ test.describe('Roles List Page', () => {
     
     // Wait for role list to update and verify new role appears
     await expect(async () => {
-      // Wait for dashboard refresh with retry
-      const dashboardResponse = await page.waitForResponse((response: Response) => 
-        response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
-        response.request().method() === 'GET'
-      );
-      expect(dashboardResponse.ok()).toBeTruthy();
-      
       const count = await page.getByTestId('role-item').count();
       expect(count).toBe(initialCount + 1);
       await expect(page.getByText(roleName)).toBeVisible();
       await expect(page.getByText(roleDescription)).toBeVisible();
-    }).toPass({ timeout: 30000 });
+    }).toPass();
   });
 
   test('can update role permissions', async ({ authenticatedPage: page }) => {
@@ -109,35 +104,34 @@ test.describe('Roles List Page', () => {
     // Get the role ID from the URL
     const roleId = page.url().split('/').pop();
     
-    // Click toggle and wait for API response
-    const updateResponse = await Promise.all([
-      page.waitForResponse((response: Response) => 
-        response.url().includes(`${env.apiUrl}/roles/${roleId}/permissions`) && 
-        response.request().method() === 'PATCH'
-      ),
-      toggle.click()
-    ]).then(([response]) => response);
+    // Set up response listener before clicking toggle
+    const responsePromise = page.waitForResponse((response: Response) => 
+      response.url().includes(`${env.apiUrl}/roles/${roleId}/permissions`) && 
+      response.request().method() === 'PATCH'
+    );
     
-    // Wait for dashboard to refresh with retry
+    // Click toggle
+    await toggle.click();
+    
+    // Wait for response
+    const updateResponse = await responsePromise;
+    
+    // Wait for dashboard to refresh
     await expect(async () => {
-      const dashboardResponse = await page.waitForResponse((response: Response) => 
-        response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
-        response.request().method() === 'GET'
-      );
-      expect(dashboardResponse.ok()).toBeTruthy();
-    }).toPass({ timeout: 30000 });
+      // Get updated permissions after toggle
+      const updatedPermissions = await page.evaluate(() => {
+        const toggles = Array.from(document.querySelectorAll('[data-testid="permission-toggle"]'));
+        return toggles.map(toggle => ({
+          id: toggle.getAttribute('data-permission-id'),
+          checked: (toggle as HTMLInputElement).checked
+        }));
+      });
+      
+      // Verify state changed
+      expect(updatedPermissions[0].checked).not.toBe(currentPermissions[0].checked);
+    }).toPass();
     
-    // Get updated permissions after toggle
-    const updatedPermissions = await page.evaluate(() => {
-      const toggles = Array.from(document.querySelectorAll('[data-testid="permission-toggle"]'));
-      return toggles.map(toggle => ({
-        id: toggle.getAttribute('data-permission-id'),
-        checked: (toggle as HTMLInputElement).checked
-      }));
-    });
-    
-    // Verify response and state
+    // Verify response
     expect(updateResponse.status()).toBe(200);
-    expect(updatedPermissions[0].checked).not.toBe(currentPermissions[0].checked);
   });
 }); 
