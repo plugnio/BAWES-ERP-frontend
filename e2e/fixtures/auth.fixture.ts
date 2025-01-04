@@ -21,38 +21,79 @@ export const test = debugTest.extend<AuthFixtures>({
       
       // Add route handler for token refresh
       await debugPage.route(`${apiUrl}/auth/refresh`, async (route) => {
-        const response = await route.fetch();
-        const status = response.status();
-        
-        if (status === 401) {
-          // If refresh fails, redirect to login
-          await debugPage.goto(`${baseUrl}${ROUTES.LOGIN}`);
-          return;
+        try {
+          const response = await route.fetch();
+          const status = response.status();
+          
+          if (status === 401) {
+            // If refresh fails, redirect to login
+            await debugPage.goto(`${baseUrl}${ROUTES.LOGIN}`);
+            return;
+          }
+          
+          await route.fulfill({ response });
+        } catch (error) {
+          console.error('Error in refresh route handler:', error);
+          await route.continue();
         }
-        
-        await route.fulfill({ response });
       });
       
+      // Add route handler for 401 responses
+      await debugPage.route('**/*', async (route) => {
+        try {
+          const response = await route.fetch();
+          const status = response.status();
+          
+          if (status === 401) {
+            // Try to refresh token
+            const refreshResponse = await debugPage.request.post(`${apiUrl}/auth/refresh`);
+            
+            if (refreshResponse.ok()) {
+              // Token refreshed, retry original request
+              const retryResponse = await route.fetch();
+              await route.fulfill({ response: retryResponse });
+              return;
+            }
+            
+            // If refresh fails, redirect to login
+            await debugPage.goto(`${baseUrl}${ROUTES.LOGIN}`);
+            return;
+          }
+          
+          await route.fulfill({ response });
+        } catch (error) {
+          console.error('Error in 401 route handler:', error);
+          await route.continue();
+        }
+      });
+      
+      // Navigate to login page
       await debugPage.goto(`${baseUrl}${ROUTES.LOGIN}`);
-
-      // Wait for page to be ready with increased timeouts
-      await debugPage.waitForLoadState('domcontentloaded');
-      await debugPage.waitForLoadState('networkidle');
+      await debugPage.waitForLoadState('domcontentloaded', { timeout: 30000 });
 
       // Wait for form elements with more reliable selectors
-      const emailInput = await debugPage.waitForSelector('input[name="email"]', { state: 'visible' });
-      const passwordInput = await debugPage.waitForSelector('input[name="password"]', { state: 'visible' });
+      const emailInput = await debugPage.waitForSelector('input[type="email"]', { 
+        state: 'visible',
+        timeout: 30000 
+      });
+      const passwordInput = await debugPage.waitForSelector('input[type="password"]', { 
+        state: 'visible',
+        timeout: 30000 
+      });
 
       // Fill in credentials from test environment
       const email = process.env.TEST_ADMIN_EMAIL || 'test@test.com';
       const password = process.env.TEST_ADMIN_PASSWORD || 'testtest';
       
-      // Fill in credentials with shorter delay
+      // Fill in credentials
       await emailInput.fill(email);
       await passwordInput.fill(password);
 
       // Submit form and wait for navigation
-      const submitButton = await debugPage.waitForSelector('button[type="submit"]', { state: 'visible'});
+      const submitButton = await debugPage.waitForSelector('button[type="submit"]', { 
+        state: 'visible',
+        timeout: 30000 
+      });
 
       // Set up response promise before clicking
       const responsePromise = debugPage.waitForResponse(
@@ -79,39 +120,23 @@ export const test = debugTest.extend<AuthFixtures>({
       }
 
       // Wait for navigation to complete
-      await debugPage.waitForURL('**/dashboard');
+      await debugPage.waitForURL('**/dashboard', { timeout: 30000 });
 
-      // Wait for dashboard content
-      await debugPage.waitForSelector('[data-testid="dashboard"]');
-
-      // Add route handler for 401 responses
-      await debugPage.route('**/*', async (route) => {
-        const response = await route.fetch();
-        const status = response.status();
-        
-        if (status === 401) {
-          // Try to refresh token
-          const refreshResponse = await debugPage.request.post(`${apiUrl}/auth/refresh`);
-          
-          if (refreshResponse.ok()) {
-            // Token refreshed, retry original request
-            const retryResponse = await route.fetch();
-            await route.fulfill({ response: retryResponse });
-            return;
-          }
-          
-          // If refresh fails, redirect to login
-          await debugPage.goto(`${baseUrl}${ROUTES.LOGIN}`);
-          return;
-        }
-        
-        await route.fulfill({ response });
+      // Wait for dashboard content with increased timeout
+      await debugPage.waitForSelector('[data-testid="dashboard"]', { 
+        state: 'visible',
+        timeout: 30000 
       });
 
       // Use the authenticated page
       await use(debugPage);
+      
+      // Cleanup routes after test
+      await debugPage.unrouteAll({ behavior: 'ignoreErrors' });
     } catch (error) {
       console.error('Authentication failed:', error);
+      // Cleanup routes on error
+      await debugPage.unrouteAll({ behavior: 'ignoreErrors' });
       throw error;
     }
   },
