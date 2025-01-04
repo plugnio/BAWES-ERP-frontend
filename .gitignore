@@ -47,3 +47,4 @@ e2e/test-output/
 debug.log
 test-server.log
 debug-output/
+cursor/tools/validation/node_modules/

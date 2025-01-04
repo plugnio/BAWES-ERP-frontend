@@ -4,6 +4,13 @@
 - Preserve existing tests and functionality
 - Document missing SDK features in /docs/requirements.md
 
+# Validation Requirements
+- Must validate workflow before any action
+- Must read knowledge files before implementation
+- Must analyze existing code and tests
+- Must follow TDD process (test -> implement -> verify)
+- Must preserve all existing tests
+
 # File Access
 <allowed_files>
 # Knowledge and Configuration

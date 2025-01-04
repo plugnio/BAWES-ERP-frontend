@@ -10,29 +10,31 @@
       },
       {
         "action": "check_implementation",
-        "tools": ["codebase_search", "grep_search"]
+        "tools": [
+          "codebase_search",
+          "grep_search"
+        ]
       },
       {
         "action": "understand_tests",
-        "paths": ["e2e/tests/", "src/**/*.spec.ts"]
+        "paths": [
+          "e2e/tests/",
+          "src/**/*.spec.ts"
+        ]
       }
     ],
     "change_sequence": [
       {
         "action": "write_test",
-        "validate": "test_must_fail"
+        "validate": "test_exists"
       },
       {
-        "action": "implement",
-        "validate": "test_must_pass"
+        "action": "implement_code",
+        "validate": "implementation_matches_test"
       },
       {
-        "action": "validate",
-        "steps": [
-          "wait_linting",
-          "check_errors",
-          "fix_issues"
-        ]
+        "action": "verify_test",
+        "validate": "test_passes"
       }
     ]
   },
@@ -40,50 +42,44 @@
     "required_checks": [
       {
         "type": "doc_check",
-        "paths": ["cursor/knowledge/*"]
+        "paths": [
+          "cursor/knowledge/domain/*.md",
+          "cursor/knowledge/core/*.md"
+        ]
       },
       {
         "type": "test_preservation",
-        "patterns": ["*.spec.ts"]
+        "patterns": [
+          "**/*.spec.ts",
+          "e2e/tests/**/*.spec.ts"
+        ]
       },
       {
         "type": "tdd_process",
-        "sequence": ["write_test", "implement", "verify"]
+        "sequence": [
+          "write_test",
+          "implement_code", 
+          "verify_test"
+        ]
       },
       {
         "type": "linting",
         "wait_time": 5000
       }
     ],
-    "auto_fixes": {
-      "linting": true,
-      "imports": true,
-      "test_structure": true
-    }
-  },
-  "tools": {
-    "search": {
-      "semantic_first": true,
-      "exact_fallback": true
-    },
-    "file": {
-      "require_complete_context": true,
-      "preserve_tests": true
-    },
-    "terminal": {
-      "add_cat_to_pagers": true,
-      "background_long_running": true
-    }
-  },
-  "debug": {
-    "paths": {
-      "log": "e2e/debug-output/debug.json",
-      "validation": "cursor/tools/validation"
-    },
-    "requirements": {
-      "check_after_tests": true,
-      "verify_api_calls": true,
-      "monitor_performance": true
+    "validation_points": {
+      "before_action": {
+        "required": ["verifyDocCheck"],
+        "error": "Must read documentation before proceeding"
+      },
+      "before_implementation": {
+        "required": ["canImplement", "verifyTDDProcess"],
+        "error": "Must complete analysis and follow TDD process"
+      },
+      "before_test_change": {
+        "required": ["verifyTestsPreserved"],
+        "error": "Cannot modify or delete existing tests"
+      }
     }
   }
 } 
