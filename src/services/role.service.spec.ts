@@ -181,9 +181,8 @@ describe('RoleService', () => {
       await service.updateRolePermissions('1', newPermissions);
 
       expect(mockTogglePermissions).toHaveBeenCalledWith('1', {
-        data: {
-          permissionIds: newPermissions
-        }
+        permissionCode: '3',
+        enabled: true
       });
     });
 
