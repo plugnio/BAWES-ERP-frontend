@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useServices } from './use-services';
 import type { CreateRoleDto } from '@bawes/erp-api-sdk';
 import type {
-  PermissionDashboard,
   Role,
   RoleOrderUpdate,
   UpdateRoleDto,
 } from '@/services/role.service';
+import type { PermissionDashboard } from '@/services/permissions.service';
 
 interface UsePermissionsReturn {
   dashboard: PermissionDashboard | null;
@@ -88,7 +88,7 @@ export function usePermissionCheck(): UsePermissionCheckReturn {
 }
 
 export function usePermissions(): UsePermissionsReturn {
-  const { permissions: permissionsService } = useServices();
+  const { permissions: permissionsService, roles: roleService } = useServices();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<PermissionDashboard | null>(null);
@@ -141,7 +141,7 @@ export function usePermissions(): UsePermissionsReturn {
     try {
       setIsLoading(true);
       setError(null);
-      const role = await permissionsService.getRole(roleId);
+      const role = await roleService.getRole(roleId);
       setCurrentRole(role);
     } catch (err) {
       console.error('Error loading role:', err);
@@ -150,13 +150,13 @@ export function usePermissions(): UsePermissionsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [permissionsService]);
+  }, [roleService]);
 
   const updateRolePermissions = useCallback(async (roleId: string, permissions: string[]) => {
     try {
       setIsLoading(true);
       setError(null);
-      await permissionsService.updateRolePermissions(roleId, permissions);
+      await roleService.updateRolePermissions(roleId, permissions);
       await loadRole(roleId); // Reload role to get updated permissions
       invalidateCache();
       await loadDashboard(); // Reload dashboard to update all data
@@ -167,7 +167,7 @@ export function usePermissions(): UsePermissionsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [permissionsService, loadRole, loadDashboard]);
+  }, [roleService, loadRole, loadDashboard]);
 
   const invalidateCache = useCallback(() => {
     dashboardCache = null;
@@ -176,7 +176,7 @@ export function usePermissions(): UsePermissionsReturn {
 
   const createRole = useCallback(async (data: CreateRoleDto) => {
     try {
-      const result = await permissionsService.createRole(data);
+      const result = await roleService.createRole(data);
       invalidateCache();
       await loadDashboard();
       return result;
@@ -184,11 +184,11 @@ export function usePermissions(): UsePermissionsReturn {
       console.error('Error creating role:', err);
       throw err;
     }
-  }, [permissionsService, loadDashboard, invalidateCache]);
+  }, [roleService, loadDashboard, invalidateCache]);
 
   const updateRoleOrder = useCallback(async (updates: RoleOrderUpdate[]) => {
     try {
-      const result = await permissionsService.updateRoleOrder(updates);
+      const result = await roleService.updateRoleOrder(updates);
       invalidateCache();
       await loadDashboard();
       return result;
@@ -196,7 +196,7 @@ export function usePermissions(): UsePermissionsReturn {
       console.error('Error updating role order:', err);
       throw err;
     }
-  }, [permissionsService, loadDashboard, invalidateCache]);
+  }, [roleService, loadDashboard, invalidateCache]);
 
   // Load dashboard on mount
   useEffect(() => {

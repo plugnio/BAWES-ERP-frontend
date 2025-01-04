@@ -1,6 +1,6 @@
 import { BaseService } from './base.service';
 import type { AxiosPromise } from 'axios';
-import type { CreateRoleDto, UpdateRoleDto as SDKUpdateRoleDto } from '@bawes/erp-api-sdk';
+import type { CreateRoleDto, UpdateRoleDto as SDKUpdateRoleDto, ToggleRolePermissionDto } from '@bawes/erp-api-sdk';
 
 export interface Role {
   id: string;
@@ -87,12 +87,22 @@ export class RoleService extends BaseService {
       throw new Error('Cannot modify system role permissions');
     }
 
-    const promise = this.client.roles.roleControllerTogglePermissions(roleId, {
-      data: {
-        permissionIds: permissions
+    // Get current permissions to determine what needs to be toggled
+    const currentPermissions = new Set(role.permissions);
+    
+    // Toggle each permission based on whether it's in the new permissions array
+    for (const permission of new Set([...currentPermissions, ...permissions])) {
+      const enabled = permissions.includes(permission);
+      // Only toggle if the state is different
+      if (enabled !== currentPermissions.has(permission)) {
+        const toggleDto: ToggleRolePermissionDto = {
+          permissionCode: permission,
+          enabled
+        };
+        const promise = this.client.roles.roleControllerTogglePermissions(roleId, toggleDto) as unknown as AxiosPromise<void>;
+        await this.handleRequest(promise);
       }
-    }) as unknown as AxiosPromise<void>;
-    return this.handleRequest(promise);
+    }
   }
 
   /**
