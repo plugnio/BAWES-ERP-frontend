@@ -1,3 +1,5 @@
+NEVER MESS WITH PLAYWRIGHT TIMEOUTS AND RETRIES. IT SHOULD ALWAYS BE WHATS CONFIGURED IN CONFIG AND 0 RETRIES.
+
 # Core Process
 - Follow test driven development (TDD)
 - Validate all changes (linting, tests, types)
