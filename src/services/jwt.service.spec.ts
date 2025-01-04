@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 import { JwtService } from './jwt.service';
 import { getApiClient } from '@/lib/sdk/api';
 
@@ -9,6 +13,7 @@ jest.mock('@/lib/sdk/api', () => ({
 describe('JwtService', () => {
   let jwtService: JwtService & { clearCache: jest.Mock };
   let mockApiClient: any;
+  let originalConsoleError: typeof console.error;
 
   // Helper function to create base64 encoded JWT parts
   const base64Encode = (obj: any) => Buffer.from(JSON.stringify(obj)).toString('base64');
@@ -36,6 +41,11 @@ describe('JwtService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Store original console.error
+    originalConsoleError = console.error;
+    // Silence expected errors during testing
+    console.error = jest.fn();
+    
     // Setup mock API client
     mockApiClient = {
       onTokenChange: jest.fn().mockImplementation((callback) => {
@@ -53,6 +63,11 @@ describe('JwtService', () => {
     jwtService.clearCache = jest.fn().mockImplementation(() => {
       jwtService.invalidateCache();
     });
+  });
+
+  afterEach(() => {
+    // Restore original console.error
+    console.error = originalConsoleError;
   });
 
   describe('decodeToken', () => {

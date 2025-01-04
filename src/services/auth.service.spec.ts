@@ -1,12 +1,21 @@
+/**
+ * @jest-environment jsdom
+ */
+
 import { AuthService } from './auth.service';
 import { ServiceRegistry } from './index';
 import { getApiClient } from '@/lib/sdk/api';
 import type { LoginDto, RegisterDto, VerifyEmailDto } from '@bawes/erp-api-sdk';
 import { AxiosError, AxiosResponse } from 'axios';
+import { debugLog } from '@/lib/debug';
 
-// Mock the API client module
+// Mock dependencies
 jest.mock('@/lib/sdk/api', () => ({
   getApiClient: jest.fn()
+}));
+
+jest.mock('@/lib/debug', () => ({
+  debugLog: jest.fn()
 }));
 
 describe('AuthService', () => {
