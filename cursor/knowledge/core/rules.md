@@ -1,5 +1,98 @@
 # Core Rules
 
+## Workflow Rules
+
+### Starting Any Task
+1. Read knowledge docs first:
+   ```bash
+   # ALWAYS start by reading
+   cursor/knowledge/domain/*.md    # Domain understanding
+   cursor/knowledge/core/*.md      # Core rules & processes
+   ```
+
+2. Check existing implementation:
+   ```bash
+   # Use semantic search first
+   codebase_search "relevant terms"
+   
+   # Then exact matches if needed
+   grep_search "exact_symbol"
+   ```
+
+3. Understand test requirements:
+   - Check `e2e/tests/` for similar features
+   - Review unit tests in related `*.spec.ts` files
+   - Note test patterns and assertions
+
+### Making Changes
+
+1. Test First:
+   ```typescript
+   // 1. Write failing test
+   edit_file "path/to/test.spec.ts"
+   
+   // 2. Run test to verify failure
+   run_terminal_cmd "npm test path/to/test.spec.ts"
+   ```
+
+2. Implement:
+   ```typescript
+   // 3. Write implementation
+   edit_file "path/to/implementation.ts"
+   
+   // 4. Run tests to verify
+   run_terminal_cmd "npm test path/to/test.spec.ts"
+   ```
+
+3. Validate:
+   ```bash
+   # 5. Wait for linting (minimum 5s)
+   # 6. Check for errors
+   # 7. Fix any issues
+   ```
+
+### E2E Testing
+
+1. Before E2E Tests:
+   ```bash
+   # Clear debug output
+   rm e2e/debug-output/debug.json
+   ```
+
+2. Run Tests:
+   ```bash
+   # Run specific test with UI
+   run_terminal_cmd "npm run test:e2e:ui tests/path/to/test.spec.ts"
+   ```
+
+3. After Tests:
+   ```bash
+   # Check debug output
+   read_file "e2e/debug-output/debug.json"
+   
+   # Verify API optimization
+   grep_search "api-tracker.*getCalls"
+   ```
+
+### Validation Process
+
+1. Run Assistant Validation:
+   ```bash
+   # Validate my behavior
+   run_terminal_cmd "node cursor/tools/validation/validate.ts cursor-debug.json"
+   ```
+
+2. Check Results:
+   - Verify doc checks
+   - Confirm test preservation
+   - Validate TDD process
+   - Check linting completion
+
+3. Fix Issues:
+   - Address any validation failures
+   - Re-run validation until passing
+   - Document new patterns if needed
+
 ## Tool Usage Rules
 
 ### Before Using Tools

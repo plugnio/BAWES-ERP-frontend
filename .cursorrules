@@ -1,135 +1,39 @@
-# Required process
-- After running e2e tests, make sure to check e2e/debug-output/debug.json for a complete log of the test run
-- ALWAYS MAKE SURE YOU HAVE FULL KNOWLEDGE FROM docs/cursor-knowledge.md AND KEEP MAINTAINING IT WITH NEW KNOWLEDGE THAT IS REQUIRED FOR FUTURE WORK.
-- Follow test driven development process. Before writing any code, write the test first.
-- Confirm the test passes before delivering your work as completed. Keep improving the tests until they pass.
-- Do not delete existing tests and code just to make things pass. Deletion should only happen when it is absolutely necessary or when it is a part of a refactoring.
+# Core Process
+- Follow test driven development (TDD)
+- Validate all changes (linting, tests, types)
+- Preserve existing tests and functionality
+- Document missing SDK features in /docs/requirements.md
 
-# Rules
-- DO NOT HARDCODE URLS AND PATHS IN THE CODEBASE. USE ENV VARIABLES.
-- IMPORTANT: All token handling is from sdk/api.ts and the bawes sdk
-- Use BAWES SDK to generate code and interact with the backend ERP API (node_modules/@bawes/erp-api-sdk).
-- Whenenever you do any code changes, validate to confirm there are no linting errors and keep fixing until you get it right. Wait for linting to complete, Verify there are no errors, Only then share the solution
-- When installing npm dependencies, make sure you aren't repeating installs that have already been done.
-- When using shadcn, using "npx shadcn-ui@latest" is outdated. Its now "@shadcn/ui".
-- Dont modify env files unless you have a good reason.
-- Make sure to utilize Shadcn UI for the frontend.
-- This codebase is in Nextjs, make sure to use Nextjs features and libraries as per best practices.
-- Make sure to use TailwindCSS for styling.
-- Make sure to use TypeScript for the codebase.
-- Make sure to use Zod for validation.
-- Always test and validate your work before making changes
-- Make sure to use the correct file structure and naming conventions.
-- Make sure to scan codebase for existing implementations before implementing anything to confirm you're not duplicating code.
-- When refactoring code and making file structure changes and deleting or moving files, make sure to confirm that you did it correctly before presenting your work. Keep attempting to structure it right until you get it right.
-- When making changes to the codebase, make sure to test and validate your work before presenting your work.
-
-# When installing shadcn/ui components
-1. First check if the component exists in src/components/ui
-2. If it doesn't exist:
-   - Use the exact command format: npx @shadcn/ui add <component-name>
-   - When prompted, always select:
-     - Path: src/components/ui
-     - Style: default
-     - Yes to overwrite
-3. After installation, verify the component exists in src/components/ui
-4. Update imports to use exact path: @/components/ui/<component>
-
-# When making code changes
-1. Validate to confirm there are no linting errors
-2. Wait for linting to complete (minimum 5 seconds)
-3. Verify there are no errors
-4. Only then share the solution
-
-# When implementing new features
-1. First check if the feature exists in the BAWES SDK
-2. If a required method/feature doesn't exist:
-   - Document it in /docs/requirements.md
-   - Inform the user immediately
-   - Do not attempt random implementations
-
-### When implementing new features:
-1. Check if the feature exists in the BAWES SDK
-2. Use the shared SDK configuration
-3. Follow the component template for data fetching
-4. Add proper error handling
-5. Add proper loading states
-6. Add proper empty states
-7. Add proper type definitions
-8. Add proper null checks
-
-### When making API calls:
-1. Use the shared SDK configuration
-2. Handle token expiry
-3. Handle 401 errors
-4. Provide proper error messages
-5. Show loading states
-6. Handle empty responses
-
-### When handling authentication:
-1. Use the shared SDK configuration
-2. Handle token expiry
-3. Handle token refresh
-4. Handle 401 errors
-5. Use the debug panel to verify token state
-
-### When adding new components:
-1. Initialize state with proper default values
-2. Add proper loading states
-3. Add proper error states
-4. Add proper empty states
-5. Add proper type definitions
-6. Add proper null checks
-7. Clean up effects with isMounted flag
-
-# Documentation Structure
-/docs
-  /requirements.md      # Missing features/methods needed
-  /status.md           # Implementation status and progress
-  /architecture.md     # System design decisions
-  /api.md             # API documentation
-  /components.md       # UI components documentation
-
-# When checking linting errors
-1. After any code change, wait for linting to complete (minimum 5 seconds)
-2. Look for the specific linting errors output which shows:
-   - File name
-   - Line number
-   - Exact error message
-3. Do not assume linting is complete without seeing this output
-4. Do not claim "no errors" without verifying the complete linting output
-5. If you see "Cannot find module" errors, check:
-   - File exists in the specified path
-   - Import path is correct
-   - File naming matches exactly (case-sensitive)
-
-# When making file structure changes
-1. Verify all imports are updated
-2. Check for duplicate files
-3. Ensure consistent naming conventions
-4. Wait for linting to complete before confirming changes
-
-# When installing npm dependencies
-1. Check if dependency is already installed
-2. Use exact versions when needed
-3. Document any peer dependency requirements
-4. Verify installation was successful before proceeding
-
-# SDK Access Configuration
+# File Access
 <allowed_files>
-# Full SDK access
+# Knowledge and Configuration
+cursor/knowledge/**
+cursor/config/**
+cursor/tools/**
+
+# Test Files
+e2e/tests/**/*.spec.ts
+e2e/debug-output/debug.json
+src/**/*.spec.ts
+
+# SDK Access
 node_modules/@bawes/erp-api-sdk/src/**
 node_modules/@bawes/erp-api-sdk/dist/**
 </allowed_files>
 
-## Priority Access Order:
-1. API implementations: src/api.ts
-2. Type definitions: dist/types/
-3. Configuration: src/configuration.ts
-4. Base classes: src/base.ts
+# Configuration
+<config>
+{
+  "workflow": "cursor/config/assistant.json",
+  "knowledge": "cursor/knowledge",
+  "validation": "cursor/tools/validation",
+  "debug": "e2e/debug-output/debug.json"
+}
+</config>
 
-## When accessing SDK:
-1. First check src/ directory for source implementation
-2. Then check dist/ for compiled output if needed
-3. Use type definitions for understanding interfaces
-4. Reference implementation details for accurate
+# Implementation Rules
+- Use BAWES SDK for API interactions
+- Use environment variables for configuration
+- Follow Nextjs/React best practices
+- Use ShadCN UI (@shadcn/ui) for components
+- Use TypeScript and Zod for type safety
