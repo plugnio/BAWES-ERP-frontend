@@ -1,4 +1,5 @@
 # Required process
+- After running e2e tests, make sure to check e2e/debug-output/debug.json for a complete log of the test run
 - ALWAYS MAKE SURE YOU HAVE FULL KNOWLEDGE FROM docs/cursor-knowledge.md AND KEEP MAINTAINING IT WITH NEW KNOWLEDGE THAT IS REQUIRED FOR FUTURE WORK.
 - Follow test driven development process. Before writing any code, write the test first.
 - Confirm the test passes before delivering your work as completed. Keep improving the tests until they pass.
