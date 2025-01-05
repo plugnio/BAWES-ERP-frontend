@@ -103,18 +103,37 @@ test.describe('Roles List Page', () => {
     
     // Click save and wait for role creation
     await page.getByRole('button', { name: 'Save' }).click();
-    await createPromise;
+    const createResponse = await createPromise;
+    expect(createResponse.status()).toBe(201);
     await expect(dialog).not.toBeVisible();
     
-    // Wait for role to appear and click it
+    // Wait for role to appear in the list
+    await expect(page.getByText(roleName)).toBeVisible();
+    
+    // Wait for dashboard to load after role creation
+    await page.waitForResponse((response: Response) => 
+      response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
+      response.request().method() === 'GET'
+    );
+    
+    // Click the role and wait for permission dashboard
     await page.getByText(roleName).click();
     
     // Wait for permission dashboard to load
-    await expect(page.getByTestId('permission-dashboard')).toBeVisible();
+    const dashboard = page.getByTestId('permission-dashboard');
+    await expect(dashboard).toBeVisible({ timeout: 10000 });
     
-    // Get first category's first permission toggle
-    const firstToggle = page.getByTestId('permission-toggle').first();
-    await expect(firstToggle).toBeVisible();
+    // Get first category's first permission toggle and its code
+    const permissionItem = page.getByTestId('permission-item').first();
+    await expect(permissionItem).toBeVisible();
+    
+    // Get the permission code from the data attribute
+    const permissionCode = await permissionItem.getAttribute('data-permission-code');
+    expect(permissionCode).toBeTruthy();
+    
+    // Get the toggle for this permission
+    const toggle = permissionItem.getByTestId('permission-toggle');
+    await expect(toggle).toBeVisible();
     
     // Set up response promise for permission toggle
     const togglePromise = page.waitForResponse((response: Response) => 
@@ -124,9 +143,12 @@ test.describe('Roles List Page', () => {
     );
     
     // Click toggle and wait for response
-    await firstToggle.click();
+    await toggle.click();
     const toggleResponse = await togglePromise;
     expect(toggleResponse.status()).toBe(200);
+    
+    // Wait for all permission updates to complete
+    await page.waitForLoadState('networkidle');
     
     // Wait for dashboard refresh
     await page.waitForResponse((response: Response) => 
@@ -134,7 +156,10 @@ test.describe('Roles List Page', () => {
       response.request().method() === 'GET'
     );
     
+    // Wait for UI to stabilize
+    await page.waitForTimeout(1000);
+    
     // Verify toggle state updated
-    await expect(firstToggle).toBeChecked();
+    await expect(toggle).toBeChecked();
   });
 }); 

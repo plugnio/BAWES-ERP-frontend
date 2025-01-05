@@ -23,8 +23,8 @@ export const test = debugTest.extend<AuthFixtures>({
       await debugPage.goto(`${baseUrl}${ROUTES.LOGIN}`);
       
       // Wait for form elements with updated selectors
-      const emailInput = await debugPage.waitForSelector('input[name="email"]');
-      const passwordInput = await debugPage.waitForSelector('input[name="password"]');
+      const emailInput = await debugPage.waitForSelector('input[placeholder="m@example.com"]');
+      const passwordInput = await debugPage.waitForSelector('input[placeholder="Enter your password"]');
       const submitButton = await debugPage.waitForSelector('button[type="submit"]');
 
       // Fill in credentials from test environment

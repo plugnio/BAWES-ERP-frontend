@@ -175,18 +175,30 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
   }
 
   return (
-    <div className={cn("space-y-6", className)} data-testid="permission-dashboard">
+    <div className={cn('space-y-4', className)} data-testid="permission-dashboard">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
       {updateError && (
-        <Alert variant="destructive" className="mb-4">
+        <Alert variant="destructive">
           <AlertDescription>{updateError}</AlertDescription>
         </Alert>
       )}
-      <PermissionList
-        categories={dashboard.categories}
-        selectedPermissions={new Set(currentRole?.permissions || [])}
-        onPermissionToggle={handlePermissionToggle}
-        onBulkSelect={handleBulkSelect}
-      />
+      {isLoading ? (
+        <div className="flex justify-center items-center min-h-[200px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : dashboard ? (
+        <PermissionList
+          categories={dashboard.categories}
+          selectedPermissions={new Set(currentRole?.permissions)}
+          onPermissionToggle={handlePermissionToggle}
+          onBulkSelect={handleBulkSelect}
+          disabled={currentRole?.isSystem}
+        />
+      ) : null}
     </div>
   );
 } 

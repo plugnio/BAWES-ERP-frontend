@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { Permission, PermissionCategory } from '@/services/permissions.service';
+import { cn } from '@/lib/utils';
 
 interface PermissionListProps {
   /** List of permission categories */
@@ -98,36 +99,36 @@ export function PermissionList({
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
-                  {category.permissions
-                    .filter(permission => !permission.isDeprecated)
-                    .map(permission => (
-                      <div
-                        key={`permission-${permission.id}`}
-                        className="flex items-start space-x-2 p-2 rounded-lg hover:bg-accent/50 transition-colors"
-                      >
-                        <Checkbox
-                          id={`permission-${permission.id}`}
-                          data-testid="permission-toggle"
-                          data-permission-id={permission.id}
-                          checked={selectedPermissions.has(permission.id)}
-                          onCheckedChange={() => onPermissionToggle?.(permission.id)}
-                          disabled={disabled}
-                        />
-                        <div className="space-y-1">
-                          <label
-                            htmlFor={`permission-${permission.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {permission.name}
-                          </label>
-                          {permission.description && (
-                            <p className="text-xs text-muted-foreground">
-                              {permission.description}
-                            </p>
+                  {category.permissions.map(permission => (
+                    <div 
+                      key={permission.id}
+                      data-testid="permission-item"
+                      data-permission-code={permission.id}
+                      className="flex items-center space-x-2"
+                    >
+                      <Checkbox
+                        id={permission.id}
+                        data-testid="permission-toggle"
+                        checked={selectedPermissions.has(permission.id)}
+                        onCheckedChange={() => onPermissionToggle?.(permission.id)}
+                        disabled={disabled || permission.isDeprecated}
+                      />
+                      <div>
+                        <label
+                          htmlFor={permission.id}
+                          className={cn(
+                            "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                            permission.isDeprecated && "text-muted-foreground line-through"
                           )}
-                        </div>
+                        >
+                          {permission.name}
+                        </label>
+                        {permission.description && (
+                          <p className="text-sm text-muted-foreground">{permission.description}</p>
+                        )}
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
