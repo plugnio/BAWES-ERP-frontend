@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, createContext } from 'react';
 import { useServices } from './use-services';
 import type { CreateRoleDto } from '@bawes/erp-api-sdk';
 import type {
@@ -7,6 +7,15 @@ import type {
   UpdateRoleDto,
 } from '@/services/role.service';
 import type { PermissionDashboard } from '@/services/permissions.service';
+
+export type PermissionState = {
+  dashboard: PermissionDashboard | null;
+  currentRole: Role | null;
+  isLoading: boolean;
+  error: string | null;
+};
+
+export const PermissionContext = createContext<PermissionState | null>(null);
 
 interface UsePermissionsReturn {
   dashboard: PermissionDashboard | null;

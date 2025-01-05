@@ -224,19 +224,15 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
           <AlertDescription>{updateError}</AlertDescription>
         </Alert>
       )}
-      {isLoading ? (
-        <div className="flex justify-center items-center min-h-[200px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : dashboard ? (
+      {dashboard && (
         <PermissionList
           categories={dashboard.categories}
-          selectedPermissions={new Set(currentRole?.permissions)}
+          selectedPermissions={new Set(currentRole.permissions)}
           onPermissionToggle={handlePermissionToggle}
           onBulkSelect={handleBulkSelect}
-          disabled={currentRole?.isSystem}
+          disabled={isLoading}
         />
-      ) : null}
+      )}
     </div>
   );
 } 
