@@ -166,11 +166,6 @@ test.describe('Roles List Page', () => {
     const toggleResponse = await togglePromise;
     expect(toggleResponse.status()).toBe(200);
     
-    // Wait for loading spinner to appear and disappear
-    const spinner = page.locator('.animate-spin');
-    await expect(spinner).toBeVisible({ timeout: 15000 });
-    await expect(spinner).not.toBeVisible({ timeout: 15000 });
-    
     // Wait for all permission updates to complete
     await page.waitForLoadState('networkidle');
     

@@ -74,6 +74,9 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
       setIsLoading(true);
       setError(null);
       
+      // Clear dashboard cache to ensure fresh data
+      permissionsService.clearDashboardCache();
+      
       // Load role first to ensure we have the latest permissions
       await loadRole(role.id);
       await loadDashboard();
@@ -83,7 +86,7 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
     } finally {
       setIsLoading(false);
     }
-  }, [loadDashboard, loadRole, role?.id]);
+  }, [loadDashboard, loadRole, role?.id, permissionsService]);
 
   // Initial load
   React.useEffect(() => {
@@ -100,17 +103,17 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
 
   /**
    * Handles toggling a single permission
-   * @param {string} permissionId - ID of permission to toggle
+   * @param {string} permissionCode - Code of permission to toggle
    * @returns {Promise<void>}
    */
-  const handlePermissionToggle = React.useCallback(async (permissionId: string) => {
+  const handlePermissionToggle = React.useCallback(async (permissionCode: string) => {
     if (!currentRole?.id) return;
 
     const newPermissions = new Set(currentRole.permissions);
-    if (newPermissions.has(permissionId)) {
-      newPermissions.delete(permissionId);
+    if (newPermissions.has(permissionCode)) {
+      newPermissions.delete(permissionCode);
     } else {
-      newPermissions.add(permissionId);
+      newPermissions.add(permissionCode);
     }
 
     const permissionsArray = Array.from(newPermissions);
@@ -138,14 +141,14 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
     const category = dashboard.categories.find((c: PermissionCategory) => c.name === categoryName);
     if (!category) return;
 
-    const categoryPermissions = category.permissions.map((p: Permission) => p.id);
+    const categoryPermissions = category.permissions.map((p: Permission) => p.code);
     const newPermissions = new Set(currentRole.permissions);
     
-    categoryPermissions.forEach((permissionId: string) => {
+    categoryPermissions.forEach((permissionCode: string) => {
       if (selected) {
-        newPermissions.add(permissionId);
+        newPermissions.add(permissionCode);
       } else {
-        newPermissions.delete(permissionId);
+        newPermissions.delete(permissionCode);
       }
     });
 
