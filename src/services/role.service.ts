@@ -173,7 +173,9 @@ export class RoleService extends BaseService {
     const promise = this.client.roles.roleControllerDeleteRole(roleId) as unknown as AxiosPromise<void>;
     await this.handleRequest(promise);
 
-    // Clear dashboard cache after deletion
+    // Silently clear dashboard cache in the background
+    // This will make the next dashboard fetch get fresh data
+    // but won't force an immediate refresh
     if (this.permissionsService) {
       this.permissionsService.clearDashboardCache();
     }

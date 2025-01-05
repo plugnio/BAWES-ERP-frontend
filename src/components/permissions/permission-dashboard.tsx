@@ -26,7 +26,6 @@ interface PermissionDashboardProps {
  */
 export function PermissionDashboard({ role, onPermissionsChange, className }: PermissionDashboardProps) {
   const { permissions: permissionsService, roles: rolesService } = useServices();
-  const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [updateError, setUpdateError] = React.useState<string | null>(null);
   const [dashboard, setDashboard] = React.useState<PermissionDashboard | null>(null);
@@ -71,7 +70,6 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
     if (!role?.id) return;
     
     try {
-      setIsLoading(true);
       setError(null);
       
       // Clear dashboard cache to ensure fresh data
@@ -83,8 +81,6 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
     } catch (error) {
       console.error('Failed to refresh data:', error);
       setError('Failed to refresh data. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   }, [loadDashboard, loadRole, role?.id, permissionsService]);
 
@@ -200,14 +196,6 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
     }
   }, [currentRole, dashboard, rolesService, onPermissionsChange, permissionsService, loadDashboard]);
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>;
-  }
-
   if (!dashboard) {
     return null;
   }
@@ -230,7 +218,7 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
           selectedPermissions={new Set(currentRole.permissions)}
           onPermissionToggle={handlePermissionToggle}
           onBulkSelect={handleBulkSelect}
-          disabled={isLoading || currentRole.isSystem}
+          disabled={currentRole.isSystem}
         />
       )}
     </div>

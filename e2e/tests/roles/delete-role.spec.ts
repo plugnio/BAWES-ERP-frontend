@@ -79,11 +79,6 @@ test.describe('Role Deletion', () => {
       response.request().method() === 'DELETE'
     );
 
-    const dashboardRefreshPromise = page.waitForResponse((response: Response) => 
-      response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
-      response.request().method() === 'GET'
-    );
-
     // Click the delete button
     await roleItem.getByTestId('delete-role-button').click();
 
@@ -93,9 +88,6 @@ test.describe('Role Deletion', () => {
     // Wait for delete response
     const deleteResponse = await deletePromise;
     expect(deleteResponse.status()).toBe(200);
-
-    // Wait for dashboard refresh
-    await dashboardRefreshPromise;
 
     // Wait for network to be idle
     await page.waitForLoadState('networkidle');

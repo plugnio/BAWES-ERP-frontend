@@ -31,7 +31,7 @@ interface PermissionExplorerProps {
 export function PermissionExplorer({ className }: PermissionExplorerProps) {
   const {
     dashboard,
-    isLoading,
+    isLoading: isDashboardLoading,
     error,
     loadDashboard,
     updateRoleOrder,
@@ -90,9 +90,6 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
     try {
       setUpdateError(null);
       
-      // Update permissions
-      await roleService.updateRolePermissions(selectedRoleId, permissions);
-      
       // Update local state immediately
       setRoles(prevRoles => prevRoles.map(role => 
         role.id === selectedRoleId 
@@ -100,11 +97,14 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
           : role
       ));
       
-      // Refresh dashboard to ensure consistency
-      await loadDashboard();
+      // Update permissions in background
+      await roleService.updateRolePermissions(selectedRoleId, permissions);
     } catch (error) {
       console.error('Failed to update permissions:', error);
       setUpdateError('Failed to update permissions. Please try again.');
+      
+      // Revert optimistic update on error
+      await loadDashboard();
     }
   };
 
@@ -117,13 +117,35 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
       
       // Update local state immediately
       setRoles(prevRoles => [...prevRoles, role]);
-      
-      // Refresh dashboard to ensure consistency
-      await loadDashboard();
     } catch (error) {
       console.error('Failed to create role:', error);
       setUpdateError('Failed to create role. Please try again.');
       throw error;
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string) => {
+    try {
+      setUpdateError(null);
+
+      // Optimistically update UI
+      const deletedRole = roles.find(r => r.id === roleId);
+      if (!deletedRole) return;
+
+      // Update local state immediately
+      setRoles(prevRoles => prevRoles.filter(role => role.id !== roleId));
+      if (selectedRoleId === roleId) {
+        setSelectedRoleId(undefined);
+      }
+
+      // Delete role in background
+      await roleService.deleteRole(roleId);
+    } catch (error) {
+      console.error('Failed to delete role:', error);
+      setUpdateError('Failed to delete role. Please try again.');
+
+      // Revert optimistic update on error
+      await loadDashboard();
     }
   };
 
@@ -149,7 +171,7 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
           <AlertDescription>{updateError}</AlertDescription>
         </Alert>
       )}
-      {isLoading ? (
+      {isDashboardLoading && roles.length === 0 ? (
         <div className="flex justify-center items-center min-h-[200px]">
           <LoadingSpinner size="lg" />
         </div>
@@ -169,6 +191,7 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
                 onRoleSelect={setSelectedRoleId}
                 onCreateRole={handleCreateRole}
                 onRefresh={handleRefresh}
+                onDeleteRole={handleDeleteRole}
               />
             </SortableContext>
           </DndContext>

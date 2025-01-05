@@ -45,6 +45,8 @@ interface RoleListProps {
   onCreateRole?: (name: string, description?: string) => Promise<void>;
   /** Callback to refresh the role list */
   onRefresh?: () => Promise<void>;
+  /** Callback when a role is deleted */
+  onDeleteRole?: (roleId: string) => Promise<void>;
 }
 
 interface SortableRoleProps {
@@ -163,9 +165,9 @@ export function RoleList({
   className,
   onCreateRole,
   onRefresh,
+  onDeleteRole,
 }: RoleListProps) {
   const { roles: roleService } = useServices();
-  const [isLoading, setIsLoading] = React.useState(false);
 
   const handleCreateRole = async ({ name, description }: { name: string; description?: string }) => {
     if (onCreateRole) {
@@ -175,16 +177,23 @@ export function RoleList({
 
   const handleDeleteRole = async (roleId: string) => {
     try {
-      setIsLoading(true);
-      await roleService.deleteRole(roleId);
+      // Optimistically update UI
+      const roleToDelete = roles.find(r => r.id === roleId);
       if (selectedRoleId === roleId) {
         onRoleSelect?.(undefined);
       }
+
+      // Delete role in background
+      if (onDeleteRole) {
+        await onDeleteRole(roleId);
+      } else {
+        await roleService.deleteRole(roleId);
+      }
+      
       toast({
         title: "Success",
         description: "Role deleted successfully"
       });
-      await onRefresh?.();
     } catch (error) {
       console.error('Failed to delete role:', error);
       toast({
@@ -192,14 +201,11 @@ export function RoleList({
         description: "Failed to delete role. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
+
+      // Refresh on error to ensure UI is in sync
+      await onRefresh?.();
     }
   };
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
 
   return (
     <Card className={className}>
