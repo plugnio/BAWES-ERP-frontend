@@ -246,18 +246,48 @@ describe('PermissionExplorer', () => {
   });
 
   it('should handle role deletion', async () => {
+    // Mock usePermissions to return the selected role and permissions
+    const deleteRole = jest.fn().mockResolvedValue(undefined);
+    const loadDashboard = jest.fn();
+    const loadRole = jest.fn();
+    const invalidateCache = jest.fn();
+
+    (usePermissions as jest.Mock).mockReturnValue({
+      dashboard: mockDashboard,
+      currentRole: mockDashboard.roles[1],
+      isLoading: false,
+      error: null,
+      loadDashboard,
+      loadRole,
+      updateRoleOrder: jest.fn(),
+      createRole: jest.fn(),
+      deleteRole,
+      updateRolePermissions: jest.fn(),
+      invalidateCache,
+    });
+
+    // Mock service responses
+    mockServices.permissions.getDashboard.mockResolvedValue(mockDashboard);
+    mockServices.roles.getRole.mockResolvedValue(mockDashboard.roles[1]);
+    mockServices.roles.deleteRole.mockResolvedValue(undefined);
+
     render(<PermissionExplorer />);
 
-    // Wait for roles to load and find the role items
-    const roleItems = await screen.findAllByTestId('role-item');
-    expect(roleItems).toHaveLength(mockDashboard.roles.length);
+    // Wait for roles to be visible
+    await waitFor(() => {
+      expect(screen.getAllByTestId('role-item')).toHaveLength(mockDashboard.roles.length);
+    });
 
-    // Find the second role (non-system role) and its delete button
-    const secondRole = roleItems[1];
-    const deleteButton = within(secondRole).getByTestId('delete-role-button');
+    // Find and click the delete button for the second role (non-system role)
+    const roleItems = screen.getAllByTestId('role-item');
+    const deleteButton = within(roleItems[1]).getByTestId('delete-role-button');
     await userEvent.click(deleteButton);
 
-    // Wait for the delete to be called
+    // Wait for and click the confirm delete button in the dialog
+    const confirmButton = await screen.findByRole('button', { name: /delete/i });
+    await userEvent.click(confirmButton);
+
+    // Verify the role was deleted
     await waitFor(() => {
       expect(mockServices.roles.deleteRole).toHaveBeenCalledWith('2');
     });
