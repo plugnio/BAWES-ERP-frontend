@@ -8,12 +8,15 @@ import type { Role } from './role.service';
  */
 export interface Permission {
   id: string;
+  code: string;
   name: string;
   description: string;
   category: string;
   isDeprecated: boolean;
   sortOrder: number;
   bitfield: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**

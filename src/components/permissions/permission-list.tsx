@@ -103,14 +103,14 @@ export function PermissionList({
                     <div 
                       key={permission.id}
                       data-testid="permission-item"
-                      data-permission-code={permission.id}
+                      data-permission-code={permission.code}
                       className="flex items-center space-x-2"
                     >
                       <Checkbox
                         id={permission.id}
                         data-testid="permission-toggle"
-                        checked={selectedPermissions.has(permission.id)}
-                        onCheckedChange={() => onPermissionToggle?.(permission.id)}
+                        checked={selectedPermissions.has(permission.code)}
+                        onCheckedChange={() => onPermissionToggle?.(permission.code)}
                         disabled={disabled || permission.isDeprecated}
                       />
                       <div>

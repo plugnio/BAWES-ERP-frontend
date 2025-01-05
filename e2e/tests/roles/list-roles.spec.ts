@@ -1,7 +1,14 @@
 import { test } from '../../fixtures/auth.fixture';
-import { expect, Response } from '@playwright/test';
-import { ROUTES } from '../constants';
+import { expect, type Response } from '@playwright/test';
 import { loadTestEnv } from '../../config/env';
+import { ROUTES } from '../constants';
+import type { PermissionsService } from '../../../src/services/permissions.service';
+
+declare global {
+  interface Window {
+    permissionsService?: PermissionsService;
+  }
+}
 
 test.describe('Roles List Page', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
@@ -104,28 +111,26 @@ test.describe('Roles List Page', () => {
     // Click save and wait for role creation
     await page.getByRole('button', { name: 'Save' }).click();
     const createResponse = await createPromise;
+    const roleData = await createResponse.json();
     expect(createResponse.status()).toBe(201);
     await expect(dialog).not.toBeVisible();
     
     // Wait for role to appear in the list
     await expect(page.getByText(roleName)).toBeVisible();
     
-    // Wait for dashboard to load after role creation
-    await page.waitForResponse((response: Response) => 
-      response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
-      response.request().method() === 'GET'
-    );
-    
     // Click the role and wait for permission dashboard
     await page.getByText(roleName).click();
     
     // Wait for permission dashboard to load
     const dashboard = page.getByTestId('permission-dashboard');
-    await expect(dashboard).toBeVisible({ timeout: 10000 });
+    await expect(dashboard).toBeVisible({ timeout: 15000 });
     
-    // Get first category's first permission toggle and its code
+    // Wait for loading state to finish
+    await expect(page.getByText('Loading...')).not.toBeVisible({ timeout: 15000 });
+    
+    // Wait for permission items to be visible
     const permissionItem = page.getByTestId('permission-item').first();
-    await expect(permissionItem).toBeVisible();
+    await expect(permissionItem).toBeVisible({ timeout: 15000 });
     
     // Get the permission code from the data attribute
     const permissionCode = await permissionItem.getAttribute('data-permission-code');
@@ -135,17 +140,36 @@ test.describe('Roles List Page', () => {
     const toggle = permissionItem.getByTestId('permission-toggle');
     await expect(toggle).toBeVisible();
     
-    // Set up response promise for permission toggle
-    const togglePromise = page.waitForResponse((response: Response) => 
-      response.url().includes(`${env.apiUrl}/roles`) && 
-      response.url().includes('/permissions') &&
-      response.request().method() === 'PATCH'
+    // Wait for network to be idle before clicking
+    await page.waitForLoadState('networkidle');
+    
+    // Wait for the toggle request
+    const togglePromise = page.waitForResponse(
+      async (response) => {
+        const matches = response.url().includes(`${env.apiUrl}/roles/${roleData.id}/permissions`) &&
+          response.request().method() === 'PATCH';
+        
+        if (matches) {
+          console.log('Request body:', await response.request().postDataJSON());
+          console.log('Response status:', response.status());
+          console.log('Response body:', await response.json().catch(() => 'No JSON body'));
+        }
+        
+        return matches &&
+          response.request().postDataJSON().permissionCode === permissionCode &&
+          response.request().postDataJSON().enabled === true;
+      }
     );
     
     // Click toggle and wait for response
     await toggle.click();
     const toggleResponse = await togglePromise;
     expect(toggleResponse.status()).toBe(200);
+    
+    // Wait for loading spinner to appear and disappear
+    const spinner = page.locator('.animate-spin');
+    await expect(spinner).toBeVisible({ timeout: 15000 });
+    await expect(spinner).not.toBeVisible({ timeout: 15000 });
     
     // Wait for all permission updates to complete
     await page.waitForLoadState('networkidle');

@@ -65,6 +65,11 @@ export class ServiceRegistry {
     this.people = new PeopleService();
     this.permissions = new PermissionsService();
     this.roles = new RoleService();
+
+    // Expose registry to window for testing
+    if (process.env.NODE_ENV === 'test') {
+      (window as any).serviceRegistry = ServiceRegistry;
+    }
   }
 
   /**

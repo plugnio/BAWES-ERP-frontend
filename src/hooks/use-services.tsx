@@ -66,7 +66,7 @@ interface ServicesProviderProps {
  */
 export function ServicesProvider({ children }: ServicesProviderProps) {
   return (
-    <ServicesContext.Provider value={getServices()}>
+    <ServicesContext.Provider value={getServices()} data-testid="services-context">
       {children}
     </ServicesContext.Provider>
   );
