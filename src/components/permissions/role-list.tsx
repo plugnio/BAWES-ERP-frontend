@@ -23,21 +23,38 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 interface RoleListProps {
+  /** List of roles to display */
   roles: Role[];
+  /** Callback when a role is selected */
   onRoleSelect?: (roleId: string | undefined) => void;
+  /** Currently selected role ID */
   selectedRoleId?: string;
+  /** Optional class name for styling */
   className?: string;
+  /** Callback when a new role is created */
   onCreateRole?: (name: string, description?: string) => Promise<void>;
+  /** Callback to refresh the role list */
   onRefresh?: () => Promise<void>;
 }
 
 interface SortableRoleProps {
+  /** Role to display */
   role: Role;
+  /** Whether this role is currently selected */
   isSelected: boolean;
+  /** Callback when the role is selected */
   onSelect: () => void;
+  /** Optional callback when the role is deleted */
   onDelete?: () => void;
 }
 
+/**
+ * Component for displaying a single draggable role item
+ * 
+ * @component
+ * @param {SortableRoleProps} props - Component props
+ * @returns {JSX.Element} Sortable role component
+ */
 function SortableRole({ role, isSelected, onSelect, onDelete }: SortableRoleProps) {
   const {
     attributes,
@@ -52,6 +69,7 @@ function SortableRole({ role, isSelected, onSelect, onDelete }: SortableRoleProp
     <div
       ref={setNodeRef}
       data-testid="role-item"
+      data-role-id={role.id}
       className={cn(
         "p-4 border rounded-lg cursor-pointer",
         "hover:border-primary/50 transition-colors",
@@ -93,6 +111,13 @@ function SortableRole({ role, isSelected, onSelect, onDelete }: SortableRoleProp
   );
 }
 
+/**
+ * Component for displaying and managing a list of roles
+ * 
+ * @component
+ * @param {RoleListProps} props - Component props
+ * @returns {JSX.Element} Role list component
+ */
 export function RoleList({
   roles,
   onRoleSelect,
@@ -156,7 +181,7 @@ export function RoleList({
             role={role}
             isSelected={selectedRoleId === role.id}
             onSelect={() => onRoleSelect?.(role.id)}
-            onDelete={() => handleDeleteRole(role.id)}
+            onDelete={!role.isSystem ? () => handleDeleteRole(role.id) : undefined}
           />
         ))}
       </CardContent>

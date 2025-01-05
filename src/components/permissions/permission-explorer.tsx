@@ -89,8 +89,18 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
 
     try {
       setUpdateError(null);
+      
+      // Update permissions
       await roleService.updateRolePermissions(selectedRoleId, permissions);
-      // Refresh dashboard after updating permissions
+      
+      // Update local state immediately
+      setRoles(prevRoles => prevRoles.map(role => 
+        role.id === selectedRoleId 
+          ? { ...role, permissions } 
+          : role
+      ));
+      
+      // Refresh dashboard to ensure consistency
       await loadDashboard();
     } catch (error) {
       console.error('Failed to update permissions:', error);
@@ -101,24 +111,40 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
   const handleCreateRole = async (name: string, description?: string) => {
     try {
       setUpdateError(null);
-      await createRole({ name, description });
-      // Refresh dashboard after creating role
+      
+      // Create role and wait for response
+      const role = await createRole({ name, description });
+      
+      // Update local state immediately
+      setRoles(prevRoles => [...prevRoles, role]);
+      
+      // Refresh dashboard to ensure consistency
       await loadDashboard();
     } catch (error) {
       console.error('Failed to create role:', error);
       setUpdateError('Failed to create role. Please try again.');
+      throw error;
     }
   };
 
   const handleRefresh = React.useCallback(async () => {
     try {
+      console.log('Starting dashboard refresh...');
       setUpdateError(null);
       await loadDashboard();
+      console.log('Dashboard refresh complete');
     } catch (error) {
       console.error('Failed to refresh roles:', error);
       setUpdateError('Failed to refresh roles. Please try again.');
     }
   }, [loadDashboard]);
+
+  // Add effect to log dashboard updates
+  React.useEffect(() => {
+    if (dashboard?.roles) {
+      console.log('Dashboard updated with roles:', dashboard.roles.length);
+    }
+  }, [dashboard]);
 
   return (
     <div className={className}>
@@ -133,7 +159,9 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
         </Alert>
       )}
       {isLoading ? (
-        <LoadingSpinner />
+        <div className="flex justify-center items-center min-h-[200px]">
+          <LoadingSpinner size="lg" />
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <DndContext

@@ -39,12 +39,7 @@ type CacheEntry = {
 
 // Add these variables to store the memory cache
 let dashboardCache: { data: PermissionDashboard; timestamp: number } | null = null;
-let loadingPromise: Promise<void> | null = null;
 let permissionCheckCache: { [key: string]: { result: boolean; timestamp: number } } = {};
-
-// Add this variable to track the last load time
-let lastLoadTime = 0;
-const LOAD_DEBOUNCE = 100; // 100ms debounce
 
 export function usePermissionCheck(): UsePermissionCheckReturn {
   const { permissions: permissionsService } = useServices();
@@ -95,43 +90,15 @@ export function usePermissions(): UsePermissionsReturn {
   const [currentRole, setCurrentRole] = useState<Role | null>(null);
 
   const loadDashboard = useCallback(async () => {
-    const now = Date.now();
-    
-    // If we've loaded recently, don't load again
-    if (now - lastLoadTime < LOAD_DEBOUNCE) {
-      return;
-    }
-
-    // If we're already loading, wait for the existing promise
-    if (loadingPromise) {
-      try {
-        await loadingPromise;
-        return;
-      } catch (err) {
-        // If the loading promise fails, we'll try again
-        loadingPromise = null;
-      }
-    }
-
     try {
       setIsLoading(true);
       setError(null);
-
-      // Create a new loading promise
-      loadingPromise = (async () => {
-        try {
-          const data = await permissionsService.getDashboard();
-          setDashboard(data);
-          lastLoadTime = Date.now(); // Update last load time
-        } finally {
-          loadingPromise = null;
-        }
-      })();
-
-      await loadingPromise;
+      const data = await permissionsService.getDashboard();
+      setDashboard(data);
     } catch (err) {
       console.error('Error loading permissions dashboard:', err);
       setError(err instanceof Error ? err.message : 'Failed to load permissions dashboard');
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +125,6 @@ export function usePermissions(): UsePermissionsReturn {
       setError(null);
       await roleService.updateRolePermissions(roleId, permissions);
       await loadRole(roleId); // Reload role to get updated permissions
-      invalidateCache();
       await loadDashboard(); // Reload dashboard to update all data
     } catch (err) {
       console.error('Error updating role permissions:', err);
@@ -169,34 +135,37 @@ export function usePermissions(): UsePermissionsReturn {
     }
   }, [roleService, loadRole, loadDashboard]);
 
-  const invalidateCache = useCallback(() => {
-    dashboardCache = null;
-    lastLoadTime = 0; // Reset last load time when cache is invalidated
-  }, []);
-
   const createRole = useCallback(async (data: CreateRoleDto) => {
     try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Create the role
       const result = await roleService.createRole(data);
-      invalidateCache();
+      
+      // Load dashboard and wait for it to complete
       await loadDashboard();
+      
+      // Return the created role
       return result;
     } catch (err) {
       console.error('Error creating role:', err);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
-  }, [roleService, loadDashboard, invalidateCache]);
+  }, [roleService, loadDashboard]);
 
   const updateRoleOrder = useCallback(async (updates: RoleOrderUpdate[]) => {
     try {
       const result = await roleService.updateRoleOrder(updates);
-      invalidateCache();
       await loadDashboard();
       return result;
     } catch (err) {
       console.error('Error updating role order:', err);
       throw err;
     }
-  }, [roleService, loadDashboard, invalidateCache]);
+  }, [roleService, loadDashboard]);
 
   // Load dashboard on mount
   useEffect(() => {
@@ -213,6 +182,6 @@ export function usePermissions(): UsePermissionsReturn {
     createRole,
     updateRoleOrder,
     updateRolePermissions,
-    invalidateCache
+    invalidateCache: loadDashboard
   };
 } 

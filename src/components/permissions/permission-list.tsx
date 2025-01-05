@@ -15,14 +15,27 @@ import {
 import type { Permission, PermissionCategory } from '@/services/permissions.service';
 
 interface PermissionListProps {
+  /** List of permission categories */
   categories: PermissionCategory[];
+  /** Set of selected permission IDs */
   selectedPermissions?: Set<string>;
+  /** Callback when a permission is toggled */
   onPermissionToggle?: (permissionId: string) => void;
+  /** Callback when all permissions in a category are toggled */
   onBulkSelect?: (categoryName: string, selected: boolean) => void;
+  /** Whether the permissions are disabled */
   disabled?: boolean;
+  /** Optional class name for styling */
   className?: string;
 }
 
+/**
+ * Component for displaying and managing a list of permissions
+ * 
+ * @component
+ * @param {PermissionListProps} props - Component props
+ * @returns {JSX.Element} Permission list component
+ */
 export function PermissionList({
   categories,
   selectedPermissions = new Set(),
@@ -95,6 +108,7 @@ export function PermissionList({
                         <Checkbox
                           id={`permission-${permission.id}`}
                           data-testid="permission-toggle"
+                          data-permission-id={permission.id}
                           checked={selectedPermissions.has(permission.id)}
                           onCheckedChange={() => onPermissionToggle?.(permission.id)}
                           disabled={disabled}

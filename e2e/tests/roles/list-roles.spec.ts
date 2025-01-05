@@ -47,8 +47,8 @@ test.describe('Roles List Page', () => {
     await page.getByLabel('Role Name').fill(roleName);
     await page.getByLabel('Description').fill(roleDescription);
     
-    // Set up response listener before clicking save
-    const responsePromise = page.waitForResponse((response: Response) => 
+    // Set up response promises before clicking save
+    const createPromise = page.waitForResponse((response: Response) => 
       response.url().includes(`${env.apiUrl}/roles`) && 
       response.request().method() === 'POST'
     );
@@ -56,10 +56,8 @@ test.describe('Roles List Page', () => {
     // Click save
     await page.getByRole('button', { name: 'Save' }).click();
     
-    // Wait for response
-    const createResponse = await responsePromise;
-    
-    // Get response data to verify
+    // Wait for create response and verify
+    const createResponse = await createPromise;
     const responseData = await createResponse.json();
     expect(createResponse.status()).toBe(201);
     expect(responseData.name).toBe(roleName);
@@ -69,69 +67,74 @@ test.describe('Roles List Page', () => {
     // Wait for dialog to close
     await expect(dialog).not.toBeVisible();
     
-    // Wait for role list to update and verify new role appears
+    // Wait for role to appear in the list with retries
     await expect(async () => {
-      const count = await page.getByTestId('role-item').count();
-      expect(count).toBe(initialCount + 1);
+      // Wait for role name to be visible first
       await expect(page.getByText(roleName)).toBeVisible();
       await expect(page.getByText(roleDescription)).toBeVisible();
-    }).toPass();
+      
+      // Then check the count
+      const roleItems = page.getByTestId('role-item');
+      const count = await roleItems.count();
+      expect(count).toBe(initialCount + 1);
+    }).toPass({ timeout: 15000 }); // Match the global timeout
   });
 
   test('can update role permissions', async ({ authenticatedPage: page }) => {
     const env = loadTestEnv();
     
-    // Wait for first role item to be visible
-    await expect(page.getByTestId('role-item').first()).toBeVisible();
+    // Create a new role for testing
+    const timestamp = Date.now();
+    const roleName = `Test Role ${timestamp}`;
     
-    // Click first non-system role (index 1)
-    await page.getByTestId('role-item').nth(1).click();
+    // Click New Role button and wait for dialog
+    await page.getByRole('button', { name: 'New Role' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
     
-    // Wait for permission dashboard and toggle
+    // Fill in role details
+    await page.getByLabel('Role Name').fill(roleName);
+    
+    // Set up response promises before clicking save
+    const createPromise = page.waitForResponse((response: Response) => 
+      response.url().includes(`${env.apiUrl}/roles`) && 
+      response.request().method() === 'POST'
+    );
+    
+    // Click save and wait for role creation
+    await page.getByRole('button', { name: 'Save' }).click();
+    await createPromise;
+    await expect(dialog).not.toBeVisible();
+    
+    // Wait for role to appear and click it
+    await page.getByText(roleName).click();
+    
+    // Wait for permission dashboard to load
     await expect(page.getByTestId('permission-dashboard')).toBeVisible();
-    const toggle = page.getByTestId('permission-toggle').first();
-    await expect(toggle).toBeVisible();
     
-    // Get current permissions before toggle
-    const currentPermissions = await page.evaluate(() => {
-      const toggles = Array.from(document.querySelectorAll('[data-testid="permission-toggle"]'));
-      return toggles.map(toggle => ({
-        id: toggle.getAttribute('data-permission-id'),
-        checked: (toggle as HTMLInputElement).checked
-      }));
-    });
+    // Get first category's first permission toggle
+    const firstToggle = page.getByTestId('permission-toggle').first();
+    await expect(firstToggle).toBeVisible();
     
-    // Get the role ID from the URL
-    const roleId = page.url().split('/').pop();
-    
-    // Set up response listener before clicking toggle
-    const responsePromise = page.waitForResponse((response: Response) => 
-      response.url().includes(`${env.apiUrl}/roles/${roleId}/permissions`) && 
+    // Set up response promise for permission toggle
+    const togglePromise = page.waitForResponse((response: Response) => 
+      response.url().includes(`${env.apiUrl}/roles`) && 
+      response.url().includes('/permissions') &&
       response.request().method() === 'PATCH'
     );
     
-    // Click toggle
-    await toggle.click();
+    // Click toggle and wait for response
+    await firstToggle.click();
+    const toggleResponse = await togglePromise;
+    expect(toggleResponse.status()).toBe(200);
     
-    // Wait for response
-    const updateResponse = await responsePromise;
+    // Wait for dashboard refresh
+    await page.waitForResponse((response: Response) => 
+      response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
+      response.request().method() === 'GET'
+    );
     
-    // Wait for dashboard to refresh
-    await expect(async () => {
-      // Get updated permissions after toggle
-      const updatedPermissions = await page.evaluate(() => {
-        const toggles = Array.from(document.querySelectorAll('[data-testid="permission-toggle"]'));
-        return toggles.map(toggle => ({
-          id: toggle.getAttribute('data-permission-id'),
-          checked: (toggle as HTMLInputElement).checked
-        }));
-      });
-      
-      // Verify state changed
-      expect(updatedPermissions[0].checked).not.toBe(currentPermissions[0].checked);
-    }).toPass();
-    
-    // Verify response
-    expect(updateResponse.status()).toBe(200);
+    // Verify toggle state updated
+    await expect(firstToggle).toBeChecked();
   });
 }); 

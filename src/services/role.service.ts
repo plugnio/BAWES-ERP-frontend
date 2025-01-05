@@ -1,6 +1,7 @@
 import { BaseService } from './base.service';
 import type { AxiosPromise } from 'axios';
 import type { CreateRoleDto, UpdateRoleDto as SDKUpdateRoleDto, ToggleRolePermissionDto } from '@bawes/erp-api-sdk';
+import { PermissionsService } from './permissions.service';
 
 export interface Role {
   id: string;
@@ -28,6 +29,10 @@ export interface RoleOrderUpdate {
  * Service for managing roles
  */
 export class RoleService extends BaseService {
+  constructor(private permissionsService?: PermissionsService) {
+    super();
+  }
+
   /**
    * Gets all roles
    */
@@ -54,7 +59,12 @@ export class RoleService extends BaseService {
       color: dto.color || '#000000',
       permissions: dto.permissions || [],
     }) as unknown as AxiosPromise<Role>;
-    return this.handleRequest(promise);
+    const result = await this.handleRequest(promise);
+    
+    // Clear dashboard cache after role creation
+    this.permissionsService?.clearDashboardCache();
+    
+    return result;
   }
 
   /**
@@ -103,6 +113,9 @@ export class RoleService extends BaseService {
         await this.handleRequest(promise);
       }
     }
+    
+    // Clear dashboard cache after permission updates
+    this.permissionsService?.clearDashboardCache();
   }
 
   /**
