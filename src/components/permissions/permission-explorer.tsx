@@ -129,22 +129,13 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
 
   const handleRefresh = React.useCallback(async () => {
     try {
-      console.log('Starting dashboard refresh...');
       setUpdateError(null);
       await loadDashboard();
-      console.log('Dashboard refresh complete');
     } catch (error) {
       console.error('Failed to refresh roles:', error);
       setUpdateError('Failed to refresh roles. Please try again.');
     }
   }, [loadDashboard]);
-
-  // Add effect to log dashboard updates
-  React.useEffect(() => {
-    if (dashboard?.roles) {
-      console.log('Dashboard updated with roles:', dashboard.roles.length);
-    }
-  }, [dashboard]);
 
   return (
     <div className={className}>
