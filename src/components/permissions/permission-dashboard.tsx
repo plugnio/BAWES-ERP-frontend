@@ -230,7 +230,7 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
           selectedPermissions={new Set(currentRole.permissions)}
           onPermissionToggle={handlePermissionToggle}
           onBulkSelect={handleBulkSelect}
-          disabled={isLoading}
+          disabled={isLoading || currentRole.isSystem}
         />
       )}
     </div>

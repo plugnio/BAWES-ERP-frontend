@@ -135,7 +135,7 @@ describe('PermissionExplorer', () => {
 
     (usePermissions as jest.Mock).mockReturnValue({
       dashboard: mockDashboard,
-      currentRole: mockDashboard.roles[0],
+      currentRole: mockDashboard.roles[1],
       isLoading: false,
       error: null,
       loadDashboard,
@@ -149,7 +149,7 @@ describe('PermissionExplorer', () => {
 
     // Mock service responses
     mockServices.permissions.getDashboard.mockResolvedValue(mockDashboard);
-    mockServices.roles.getRole.mockResolvedValue(mockDashboard.roles[0]);
+    mockServices.roles.getRole.mockResolvedValue(mockDashboard.roles[1]);
     mockServices.roles.updateRolePermissions.mockResolvedValue(undefined);
 
     render(<PermissionExplorer />);
@@ -159,9 +159,9 @@ describe('PermissionExplorer', () => {
       expect(screen.getAllByTestId('role-item')).toHaveLength(mockDashboard.roles.length);
     });
 
-    // Click the first role to select it
+    // Click the second role (non-system role)
     const roleItems = screen.getAllByTestId('role-item');
-    await userEvent.click(roleItems[0]);
+    await userEvent.click(roleItems[1]);
 
     // Wait for permission items to be available
     const permissionItems = await screen.findAllByTestId('permission-item');
@@ -176,7 +176,7 @@ describe('PermissionExplorer', () => {
     expect(firstToggle).toBeInTheDocument();
 
     // Get current permissions
-    const currentPermissions = new Set(mockDashboard.roles[0].permissions);
+    const currentPermissions = new Set(mockDashboard.roles[1].permissions);
     const isEnabled = !currentPermissions.has(permissionCode!);
 
     // Click the toggle
@@ -186,12 +186,12 @@ describe('PermissionExplorer', () => {
     await waitFor(() => {
       if (isEnabled) {
         expect(mockServices.roles.updateRolePermissions).toHaveBeenCalledWith(
-          mockDashboard.roles[0].id,
+          mockDashboard.roles[1].id,
           [...currentPermissions, permissionCode!]
         );
       } else {
         expect(mockServices.roles.updateRolePermissions).toHaveBeenCalledWith(
-          mockDashboard.roles[0].id,
+          mockDashboard.roles[1].id,
           Array.from(currentPermissions).filter(p => p !== permissionCode!)
         );
       }
