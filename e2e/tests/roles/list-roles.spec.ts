@@ -149,12 +149,6 @@ test.describe('Roles List Page', () => {
         const matches = response.url().includes(`${env.apiUrl}/roles/${roleData.id}/permissions`) &&
           response.request().method() === 'PATCH';
         
-        if (matches) {
-          console.log('Request body:', await response.request().postDataJSON());
-          console.log('Response status:', response.status());
-          console.log('Response body:', await response.json().catch(() => 'No JSON body'));
-        }
-        
         return matches &&
           response.request().postDataJSON().permissionCode === permissionCode &&
           response.request().postDataJSON().enabled === true;
