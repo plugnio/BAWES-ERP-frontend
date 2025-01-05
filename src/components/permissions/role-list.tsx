@@ -21,6 +21,16 @@ import { useServices } from '@/hooks/use-services';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface RoleListProps {
   /** List of roles to display */
@@ -65,49 +75,77 @@ function SortableRole({ role, isSelected, onSelect, onDelete }: SortableRoleProp
     isDragging,
   } = useSortable({ id: role.id });
 
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
+
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete();
+      setShowDeleteDialog(false);
+    }
+  };
+
   return (
-    <div
-      ref={setNodeRef}
-      data-testid="role-item"
-      data-role-id={role.id}
-      className={cn(
-        "p-4 border rounded-lg cursor-pointer",
-        "hover:border-primary/50 transition-colors",
-        isSelected && "border-primary",
-        isDragging && "opacity-50",
-        role.isSystem && "border-secondary/50"
-      )}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
-      onClick={onSelect}
-    >
-      <div className="flex items-center gap-3">
-        <div {...attributes} {...listeners} className="cursor-grab">
-          <GripVertical className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <div className="flex-1">
-          <h3 className="font-medium">{role.name}</h3>
-          <p className="text-sm text-muted-foreground">{role.description}</p>
-        </div>
-        {role.isSystem ? (
-          <Badge variant="secondary">System</Badge>
-        ) : onDelete && (
-          <Button
-            variant="ghost"
-            size="icon"
-            data-testid="delete-role-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+    <>
+      <div
+        ref={setNodeRef}
+        data-testid="role-item"
+        data-role-id={role.id}
+        className={cn(
+          "p-4 border rounded-lg cursor-pointer",
+          "hover:border-primary/50 transition-colors",
+          isSelected && "border-primary",
+          isDragging && "opacity-50",
+          role.isSystem && "border-secondary/50"
         )}
+        style={{
+          transform: CSS.Transform.toString(transform),
+          transition,
+        }}
+        onClick={onSelect}
+      >
+        <div className="flex items-center gap-3">
+          <div {...attributes} {...listeners} className="cursor-grab">
+            <GripVertical className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-medium">{role.name}</h3>
+            <p className="text-sm text-muted-foreground">{role.description}</p>
+          </div>
+          {role.isSystem ? (
+            <Badge variant="secondary">System</Badge>
+          ) : onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              data-testid="delete-role-button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteDialog(true);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this role? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

@@ -64,7 +64,7 @@ export class ServiceRegistry {
     this.auth = new AuthService();
     this.people = new PeopleService();
     this.permissions = new PermissionsService();
-    this.roles = new RoleService();
+    this.roles = new RoleService(this.permissions);
 
     // Expose registry to window for testing
     if (process.env.NODE_ENV === 'test') {

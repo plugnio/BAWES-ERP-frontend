@@ -171,6 +171,11 @@ export class RoleService extends BaseService {
     }
 
     const promise = this.client.roles.roleControllerDeleteRole(roleId) as unknown as AxiosPromise<void>;
-    return this.handleRequest(promise);
+    await this.handleRequest(promise);
+
+    // Clear dashboard cache after deletion
+    if (this.permissionsService) {
+      this.permissionsService.clearDashboardCache();
+    }
   }
 } 
