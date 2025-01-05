@@ -109,25 +109,44 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
   const handlePermissionToggle = React.useCallback(async (permissionCode: string) => {
     if (!currentRole?.id) return;
 
+    // Optimistically update UI
     const newPermissions = new Set(currentRole.permissions);
-    if (newPermissions.has(permissionCode)) {
-      newPermissions.delete(permissionCode);
-    } else {
+    const isEnabled = !newPermissions.has(permissionCode);
+    
+    if (isEnabled) {
       newPermissions.add(permissionCode);
+    } else {
+      newPermissions.delete(permissionCode);
     }
 
     const permissionsArray = Array.from(newPermissions);
+    
+    // Update local state immediately
+    setCurrentRole(prev => ({
+      ...prev!,
+      permissions: permissionsArray
+    }));
 
     try {
-      setUpdateError(null);
+      // Update in background
       await rolesService.updateRolePermissions(currentRole.id, permissionsArray);
       await onPermissionsChange?.(permissionsArray);
-      await refresh();
+      
+      // Silently refresh data
+      permissionsService.clearDashboardCache();
+      loadDashboard().catch(console.error);
     } catch (error) {
       console.error('Failed to update permissions:', error);
+      
+      // Revert optimistic update on error
+      setCurrentRole(prev => ({
+        ...prev!,
+        permissions: currentRole.permissions
+      }));
+      
       setUpdateError('Failed to update permissions. Please try again.');
     }
-  }, [currentRole?.id, currentRole?.permissions, rolesService, refresh, onPermissionsChange]);
+  }, [currentRole, rolesService, onPermissionsChange, permissionsService, loadDashboard]);
 
   /**
    * Handles bulk selection of permissions for a category
@@ -154,16 +173,32 @@ export function PermissionDashboard({ role, onPermissionsChange, className }: Pe
 
     const permissionsArray = Array.from(newPermissions);
 
+    // Update local state immediately
+    setCurrentRole(prev => ({
+      ...prev!,
+      permissions: permissionsArray
+    }));
+
     try {
-      setUpdateError(null);
+      // Update in background
       await rolesService.updateRolePermissions(currentRole.id, permissionsArray);
       await onPermissionsChange?.(permissionsArray);
-      await refresh();
+      
+      // Silently refresh data
+      permissionsService.clearDashboardCache();
+      loadDashboard().catch(console.error);
     } catch (error) {
       console.error('Failed to update permissions:', error);
+      
+      // Revert optimistic update on error
+      setCurrentRole(prev => ({
+        ...prev!,
+        permissions: currentRole.permissions
+      }));
+      
       setUpdateError('Failed to update permissions. Please try again.');
     }
-  }, [currentRole?.id, currentRole?.permissions, dashboard, rolesService, refresh, onPermissionsChange]);
+  }, [currentRole, dashboard, rolesService, onPermissionsChange, permissionsService, loadDashboard]);
 
   if (isLoading) {
     return <div>Loading...</div>;
