@@ -15,16 +15,16 @@ interface AuthFixtures {
 export const test = debugTest.extend<AuthFixtures>({
   authenticatedPage: async ({ debugPage }, use) => {
     // Use environment variable or fallback to the one from .env.test
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3456';
     const apiUrl = process.env.NEXT_PUBLIC_ERP_API_URL || 'http://localhost:3000';
     
     try {
       // Navigate to login page first
       await debugPage.goto(`${baseUrl}${ROUTES.LOGIN}`);
       
-      // Wait for form elements
-      const emailInput = await debugPage.waitForSelector('input[type="email"]');
-      const passwordInput = await debugPage.waitForSelector('input[type="password"]');
+      // Wait for form elements with updated selectors
+      const emailInput = await debugPage.waitForSelector('input[name="email"]');
+      const passwordInput = await debugPage.waitForSelector('input[name="password"]');
       const submitButton = await debugPage.waitForSelector('button[type="submit"]');
 
       // Fill in credentials from test environment
