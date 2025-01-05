@@ -61,10 +61,32 @@ export function PermissionList({
     })).filter(category => category.permissions.length > 0);
   }, [categories, searchQuery]);
 
-  // Check if all permissions in a category are selected
-  const isCategorySelected = React.useCallback((category: PermissionCategory) => {
-    const activePermissions = category.permissions.filter(p => !p.isDeprecated);
-    return activePermissions.every(p => selectedPermissions.has(p.id));
+  /**
+   * Checks if a permission is selected
+   * @param {Permission} permission - Permission to check
+   * @returns {boolean} Whether the permission is selected
+   */
+  const isPermissionSelected = React.useCallback((permission: Permission) => {
+    return selectedPermissions.has(permission.code);
+  }, [selectedPermissions]);
+
+  /**
+   * Checks if all permissions in a category are selected
+   * @param {Permission[]} permissions - Permissions to check
+   * @returns {boolean} Whether all permissions are selected
+   */
+  const isCategorySelected = React.useCallback((permissions: Permission[]) => {
+    return permissions.every((p) => selectedPermissions.has(p.code));
+  }, [selectedPermissions]);
+
+  /**
+   * Checks if some permissions in a category are selected
+   * @param {Permission[]} permissions - Permissions to check
+   * @returns {boolean} Whether some permissions are selected
+   */
+  const isCategoryIndeterminate = React.useCallback((permissions: Permission[]) => {
+    const selected = permissions.filter((p) => selectedPermissions.has(p.code));
+    return selected.length > 0 && selected.length < permissions.length;
   }, [selectedPermissions]);
 
   return (
@@ -90,8 +112,8 @@ export function PermissionList({
                 <div className="flex items-center space-x-2 pb-2 border-b">
                   <Checkbox
                     id={`category-${category.name}`}
-                    checked={isCategorySelected(category)}
-                    onCheckedChange={() => onBulkSelect?.(category.name, !isCategorySelected(category))}
+                    checked={isCategorySelected(category.permissions)}
+                    onCheckedChange={() => onBulkSelect?.(category.name, !isCategorySelected(category.permissions))}
                     disabled={disabled}
                   />
                   <div>
@@ -109,7 +131,7 @@ export function PermissionList({
                       <Checkbox
                         id={permission.id}
                         data-testid="permission-toggle"
-                        checked={selectedPermissions.has(permission.code)}
+                        checked={isPermissionSelected(permission)}
                         onCheckedChange={() => onPermissionToggle?.(permission.code)}
                         disabled={disabled || permission.isDeprecated}
                       />

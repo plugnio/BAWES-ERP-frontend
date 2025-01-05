@@ -46,7 +46,15 @@ export class RoleService extends BaseService {
    */
   public async getRole(roleId: string): Promise<Role> {
     const promise = this.client.roles.roleControllerGetRole(roleId) as unknown as AxiosPromise<Role>;
-    return this.handleRequest(promise);
+    const response = await this.handleRequest(promise);
+    
+    // Extract permission codes from nested response
+    const permissions = response.permissions.map((p: any) => p.permission?.code || p);
+    
+    return {
+      ...response,
+      permissions,
+    };
   }
 
   /**
@@ -59,12 +67,18 @@ export class RoleService extends BaseService {
       color: dto.color || '#000000',
       permissions: dto.permissions || [],
     }) as unknown as AxiosPromise<Role>;
-    const result = await this.handleRequest(promise);
+    const response = await this.handleRequest(promise);
+    
+    // Extract permission codes from nested response
+    const permissions = response.permissions.map((p: any) => p.permission?.code || p);
     
     // Clear dashboard cache after role creation
     this.permissionsService?.clearDashboardCache();
     
-    return result;
+    return {
+      ...response,
+      permissions,
+    };
   }
 
   /**
@@ -85,7 +99,15 @@ export class RoleService extends BaseService {
     };
 
     const promise = this.client.roles.roleControllerUpdateRole(roleId, updateDto) as unknown as AxiosPromise<Role>;
-    return this.handleRequest(promise);
+    const response = await this.handleRequest(promise);
+    
+    // Extract permission codes from nested response
+    const permissions = response.permissions.map((p: any) => p.permission?.code || p);
+    
+    return {
+      ...response,
+      permissions,
+    };
   }
 
   /**
