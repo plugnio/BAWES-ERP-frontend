@@ -1,27 +1,30 @@
-import { test, expect } from '@playwright/test';
+import { test } from '../../fixtures/auth.fixture';
+import { expect, type Response } from '@playwright/test';
+import { loadTestEnv } from '../../config/env';
 import { ROUTES } from '../constants';
+import type { PermissionsService } from '../../../src/services/permissions.service';
+
+declare global {
+  interface Window {
+    permissionsService?: PermissionsService;
+  }
+}
 
 test.describe('Role Update', () => {
-  test.beforeEach(async ({ page }) => {
-    // Go to the login page
-    await page.goto(ROUTES.LOGIN);
-
-    // Fill in login form
-    await page.getByLabel('Email').fill(process.env.TEST_ADMIN_EMAIL ?? '');
-    await page.getByLabel('Password').fill(process.env.TEST_ADMIN_PASSWORD ?? '');
-
-    // Submit form
-    await page.getByRole('button', { name: 'Sign In' }).click();
-
-    // Wait for navigation
-    await page.waitForURL(ROUTES.DASHBOARD);
-
+  test.beforeEach(async ({ authenticatedPage: page }) => {
+    const env = loadTestEnv();
+    
     // Navigate to roles page
-    await page.getByRole('link', { name: 'Roles' }).click();
-    await page.waitForURL(ROUTES.ROLES);
+    await page.goto(ROUTES.ROLES);
+    
+    // Wait for initial roles to load
+    await page.waitForResponse((response: Response) => 
+      response.url().includes(`${env.apiUrl}/permissions/dashboard`) && 
+      response.request().method() === 'GET'
+    );
   });
 
-  test('should update a role successfully', async ({ page }) => {
+  test('should update a role successfully', async ({ authenticatedPage: page }) => {
     // Wait for roles to load and be visible
     await page.waitForSelector('[data-testid="role-item"]', { state: 'visible' });
     await page.waitForTimeout(1000); // Wait for any animations to complete
@@ -63,7 +66,7 @@ test.describe('Role Update', () => {
     await expect(updatedRole).toHaveText(new RegExp(updatedDescription));
   });
 
-  test('should show error when updating role with empty name', async ({ page }) => {
+  test('should show error when updating role with empty name', async ({ authenticatedPage: page }) => {
     // Wait for roles to load and be visible
     await page.waitForSelector('[data-testid="role-item"]', { state: 'visible' });
     await page.waitForTimeout(1000); // Wait for any animations to complete
@@ -94,7 +97,7 @@ test.describe('Role Update', () => {
     await expect(page.getByText('Role name is required')).toBeVisible();
   });
 
-  test('should not show edit button for system roles', async ({ page }) => {
+  test('should not show edit button for system roles', async ({ authenticatedPage: page }) => {
     // Wait for roles to load and be visible
     await page.waitForSelector('[data-testid="role-item"]', { state: 'visible' });
     await page.waitForTimeout(1000); // Wait for any animations to complete
