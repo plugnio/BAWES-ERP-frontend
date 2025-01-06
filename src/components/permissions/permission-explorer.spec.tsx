@@ -32,6 +32,7 @@ const mockServices = {
     deleteRole: jest.fn().mockResolvedValue(undefined),
     getRole: jest.fn().mockResolvedValue(null),
     updateRoleOrder: jest.fn().mockResolvedValue(undefined),
+    updateRole: jest.fn().mockResolvedValue(undefined),
   },
 };
 
@@ -344,6 +345,65 @@ describe('PermissionExplorer', () => {
         { roleId: firstRoleId!, sortOrder: 1 },
         { roleId: thirdRoleId!, sortOrder: 2 },
       ]);
+    });
+  });
+
+  it('should handle role updates', async () => {
+    // Mock usePermissions to return the selected role and permissions
+    const loadDashboard = jest.fn();
+    const loadRole = jest.fn();
+    const invalidateCache = jest.fn();
+
+    (usePermissions as jest.Mock).mockReturnValue({
+      dashboard: mockDashboard,
+      currentRole: mockDashboard.roles[1],
+      isLoading: false,
+      error: null,
+      loadDashboard,
+      loadRole,
+      updateRoleOrder: jest.fn(),
+      createRole: jest.fn(),
+      deleteRole: jest.fn(),
+      updateRolePermissions: jest.fn(),
+      invalidateCache,
+    });
+
+    // Mock service responses
+    mockServices.permissions.getDashboard.mockResolvedValue(mockDashboard);
+    mockServices.roles.getRole.mockResolvedValue(mockDashboard.roles[1]);
+    mockServices.roles.updateRole.mockResolvedValue(undefined);
+
+    render(<PermissionExplorer />);
+
+    // Wait for roles to be visible
+    await waitFor(() => {
+      expect(screen.getAllByTestId('role-item')).toHaveLength(mockDashboard.roles.length);
+    });
+
+    // Find and click the edit button for the second role (non-system role)
+    const roleItems = screen.getAllByTestId('role-item');
+    const editButton = within(roleItems[1]).getByTestId('edit-role-button');
+    await userEvent.click(editButton);
+
+    // Wait for the dialog to appear and fill in the form
+    const nameInput = await screen.findByPlaceholderText('Enter role name');
+    const descriptionInput = await screen.findByPlaceholderText('Enter role description');
+
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, 'Updated Role');
+    await userEvent.clear(descriptionInput);
+    await userEvent.type(descriptionInput, 'Updated description');
+
+    // Submit the form
+    const saveButton = screen.getByRole('button', { name: /save/i });
+    await userEvent.click(saveButton);
+
+    // Verify the role was updated
+    await waitFor(() => {
+      expect(mockServices.roles.updateRole).toHaveBeenCalledWith('2', {
+        name: 'Updated Role',
+        description: 'Updated description',
+      });
     });
   });
 });

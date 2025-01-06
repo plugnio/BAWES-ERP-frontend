@@ -124,6 +124,28 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
     }
   };
 
+  const handleUpdateRole = async (roleId: string, name: string, description?: string) => {
+    try {
+      setUpdateError(null);
+
+      // Optimistically update UI
+      setRoles(prevRoles => prevRoles.map(role => 
+        role.id === roleId 
+          ? { ...role, name, description } 
+          : role
+      ));
+
+      // Update role in background
+      await roleService.updateRole(roleId, { name, description });
+    } catch (error) {
+      console.error('Failed to update role:', error);
+      setUpdateError('Failed to update role. Please try again.');
+
+      // Revert optimistic update on error
+      await loadDashboard();
+    }
+  };
+
   const handleDeleteRole = async (roleId: string) => {
     try {
       setUpdateError(null);
@@ -190,6 +212,7 @@ export function PermissionExplorer({ className }: PermissionExplorerProps) {
                 selectedRoleId={selectedRoleId}
                 onRoleSelect={setSelectedRoleId}
                 onCreateRole={handleCreateRole}
+                onUpdateRole={handleUpdateRole}
                 onRefresh={handleRefresh}
                 onDeleteRole={handleDeleteRole}
               />

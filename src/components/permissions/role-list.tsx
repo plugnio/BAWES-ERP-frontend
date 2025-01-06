@@ -16,7 +16,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2 } from 'lucide-react';
 import type { Role } from '@/services/role.service';
-import { RoleDialog } from './role-dialog';
+import { RoleFormDialog } from './role-form-dialog';
 import { useServices } from '@/hooks/use-services';
 import { toast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
@@ -43,6 +43,8 @@ interface RoleListProps {
   className?: string;
   /** Callback when a new role is created */
   onCreateRole?: (name: string, description?: string) => Promise<void>;
+  /** Callback when a role is updated */
+  onUpdateRole?: (roleId: string, name: string, description?: string) => Promise<void>;
   /** Callback to refresh the role list */
   onRefresh?: () => Promise<void>;
   /** Callback when a role is deleted */
@@ -58,6 +60,8 @@ interface SortableRoleProps {
   onSelect: () => void;
   /** Optional callback when the role is deleted */
   onDelete?: () => void;
+  /** Optional callback when the role is updated */
+  onUpdate?: (name: string, description?: string) => Promise<void>;
 }
 
 /**
@@ -67,7 +71,7 @@ interface SortableRoleProps {
  * @param {SortableRoleProps} props - Component props
  * @returns {JSX.Element} Sortable role component
  */
-function SortableRole({ role, isSelected, onSelect, onDelete }: SortableRoleProps) {
+function SortableRole({ role, isSelected, onSelect, onDelete, onUpdate }: SortableRoleProps) {
   const {
     attributes,
     listeners,
@@ -115,18 +119,28 @@ function SortableRole({ role, isSelected, onSelect, onDelete }: SortableRoleProp
           </div>
           {role.isSystem ? (
             <Badge variant="secondary">System</Badge>
-          ) : onDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid="delete-role-button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowDeleteDialog(true);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              {onUpdate && (
+                <RoleFormDialog
+                  role={role}
+                  onSubmit={({ name, description }) => onUpdate(name, description)}
+                />
+              )}
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-testid="delete-role-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDeleteDialog(true);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -164,6 +178,7 @@ export function RoleList({
   selectedRoleId,
   className,
   onCreateRole,
+  onUpdateRole,
   onRefresh,
   onDeleteRole,
 }: RoleListProps) {
@@ -172,6 +187,36 @@ export function RoleList({
   const handleCreateRole = async ({ name, description }: { name: string; description?: string }) => {
     if (onCreateRole) {
       await onCreateRole(name, description);
+    }
+  };
+
+  const handleUpdateRole = async (roleId: string, name: string, description?: string) => {
+    try {
+      // Optimistically update UI
+      const roleToUpdate = roles.find(r => r.id === roleId);
+      if (!roleToUpdate) return;
+
+      // Update role in background
+      if (onUpdateRole) {
+        await onUpdateRole(roleId, name, description);
+      } else {
+        await roleService.updateRole(roleId, { name, description });
+      }
+      
+      toast({
+        title: "Success",
+        description: "Role updated successfully"
+      });
+    } catch (error) {
+      console.error('Failed to update role:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update role. Please try again.",
+        variant: "destructive"
+      });
+
+      // Refresh on error to ensure UI is in sync
+      await onRefresh?.();
     }
   };
 
@@ -215,7 +260,7 @@ export function RoleList({
             <CardTitle role="heading" aria-level={2}>Roles</CardTitle>
             <CardDescription>Drag to reorder roles and click to manage permissions</CardDescription>
           </div>
-          {onCreateRole && <RoleDialog onSubmit={handleCreateRole} />}
+          {onCreateRole && <RoleFormDialog onSubmit={handleCreateRole} />}
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -226,6 +271,7 @@ export function RoleList({
             isSelected={selectedRoleId === role.id}
             onSelect={() => onRoleSelect?.(role.id)}
             onDelete={!role.isSystem ? () => handleDeleteRole(role.id) : undefined}
+            onUpdate={!role.isSystem ? (name, description) => handleUpdateRole(role.id, name, description) : undefined}
           />
         ))}
       </CardContent>
