@@ -103,7 +103,7 @@ test.describe('Role Deletion', () => {
 
   test('cannot delete system roles', async ({ authenticatedPage: page }) => {
     // Find a system role
-    const systemRoleItem = page.getByTestId('role-item').filter({ hasText: 'System Admin' }).first();
+    const systemRoleItem = page.getByTestId('role-item').filter({ hasText: 'SUPER_ADMIN' }).first();
     await expect(systemRoleItem).toBeVisible();
 
     // Verify delete button is not present for system roles
